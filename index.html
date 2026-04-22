@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OpticAI — Virtual Try-On</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --ink:#0e0c0a;
+  --ink2:#1c1917;
+  --ink3:#2d2926;
+  --surface:#f5f0e8;
+  --surface2:#ede8de;
+  --surface3:#e4ddd0;
+  --gold:#b8923a;
+  --gold2:#d4a84b;
+  --gold3:#f0c96a;
+  --cream:#faf7f2;
+  --text:#1a1714;
+  --text2:#4a4540;
+  --text3:#7a7570;
+  --white:#ffffff;
+  --success:#2d7a4f;
+  --error:#8b2020;
+  --shadow:0 4px 24px rgba(0,0,0,0.18);
+  --shadow2:0 2px 12px rgba(0,0,0,0.12);
+  --ff-display:'Playfair Display',Georgia,serif;
+  --ff-body:'Outfit',system-ui,sans-serif;
+  --radius:20px;
+  --radius-sm:12px;
+}
+html,body{height:100%;width:100%;overflow:hidden;background:var(--ink);font-family:var(--ff-body);color:var(--text)}
+
+/* ── PERMISSION SCREEN ── */
+#permScreen{
+  position:fixed;inset:0;background:var(--ink);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:200;padding:40px 32px;text-align:center;gap:0;
+}
+#permScreen.gone{display:none}
+.perm-logo{
+  font-family:var(--ff-display);font-size:13px;letter-spacing:0.35em;
+  text-transform:uppercase;color:var(--gold2);margin-bottom:48px;
+}
+.perm-icon{
+  width:88px;height:88px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold3) 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:36px;margin:0 auto 28px;
+  box-shadow:0 0 0 16px rgba(184,146,58,0.08),0 0 0 32px rgba(184,146,58,0.04);
+}
+.perm-title{
+  font-family:var(--ff-display);font-size:32px;font-weight:700;
+  color:var(--cream);line-height:1.2;margin-bottom:14px;
+}
+.perm-title em{font-style:italic;color:var(--gold2)}
+.perm-sub{font-size:15px;color:var(--text3);line-height:1.7;max-width:300px;margin:0 auto 40px}
+.perm-btn{
+  width:100%;max-width:300px;height:56px;
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold2) 100%);
+  color:var(--ink);border:none;border-radius:16px;
+  font-family:var(--ff-body);font-size:16px;font-weight:600;
+  letter-spacing:0.04em;cursor:pointer;
+  box-shadow:0 8px 32px rgba(184,146,58,0.35);
+  transition:transform 0.15s,box-shadow 0.15s;
+}
+.perm-btn:active{transform:scale(0.97);box-shadow:0 4px 16px rgba(184,146,58,0.25)}
+.perm-note{font-size:11px;color:var(--text3);margin-top:16px;letter-spacing:0.03em}
+
+/* ── LOADING ── */
+#loadScreen{
+  position:fixed;inset:0;background:var(--ink);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:190;gap:20px;transition:opacity 0.6s;
+}
+#loadScreen.gone{opacity:0;pointer-events:none}
+.load-logo{font-family:var(--ff-display);font-size:28px;font-weight:700;color:var(--cream)}
+.load-logo span{color:var(--gold2);font-style:italic}
+.load-bar-wrap{width:200px;height:3px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden}
+.load-bar{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold3));border-radius:3px;width:0%;transition:width 0.4s ease}
+.load-text{font-size:12px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text3)}
+
+/* ── APP SHELL ── */
+#app{display:flex;flex-direction:column;height:100dvh;width:100%;position:relative;background:var(--ink)}
+
+/* ── VIEWPORT ── */
+#viewport{position:relative;flex:1;overflow:hidden;background:#000;min-height:0}
+#inputVideo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+#outputCanvas{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+
+/* ── TOP BAR ── */
+#topBar{
+  position:absolute;top:0;left:0;right:0;z-index:20;
+  padding:16px 16px 0;
+  background:linear-gradient(to bottom,rgba(14,12,10,0.9) 0%,rgba(14,12,10,0) 100%);
+  display:flex;align-items:center;justify-content:space-between;
+  pointer-events:none;
+}
+.top-brand{
+  font-family:var(--ff-display);font-size:18px;font-weight:700;
+  color:var(--cream);letter-spacing:0.02em;
+}
+.top-brand span{color:var(--gold2);font-style:italic}
+#trackBadge{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(14,12,10,0.75);backdrop-filter:blur(10px);
+  border:1px solid rgba(184,146,58,0.2);border-radius:20px;
+  padding:5px 11px;pointer-events:auto;
+}
+.track-dot{width:7px;height:7px;border-radius:50%;background:#444;transition:background 0.3s}
+.track-dot.on{background:var(--success);animation:blink 2s infinite}
+.track-dot.seeking{background:var(--gold2);animation:blink 1s infinite}
+.track-dot.err{background:var(--error)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+#trackText{font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:0.04em}
+
+/* ── AI ANALYSIS CARD ── */
+#analysisCard{
+  position:absolute;bottom:16px;left:12px;right:12px;z-index:20;
+  background:rgba(14,12,10,0.88);backdrop-filter:blur(16px);
+  border:1px solid rgba(184,146,58,0.2);border-radius:var(--radius);
+  padding:16px;
+  transform:translateY(120%);opacity:0;
+  transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s;
+  pointer-events:none;
+}
+#analysisCard.show{transform:translateY(0);opacity:1}
+.analysis-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.analysis-shape{
+  font-family:var(--ff-display);font-size:22px;font-weight:700;
+  color:var(--cream);line-height:1;
+}
+.analysis-shape small{
+  display:block;font-family:var(--ff-body);font-size:10px;
+  font-style:normal;font-weight:400;
+  letter-spacing:0.2em;text-transform:uppercase;color:var(--gold2);margin-bottom:4px;
+}
+.analysis-metrics{display:flex;gap:12px}
+.metric{text-align:center}
+.metric-val{font-size:18px;font-weight:600;color:var(--gold2);line-height:1}
+.metric-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-top:2px}
+.analysis-desc{font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:12px}
+.analysis-occasions{display:flex;gap:6px;flex-wrap:wrap}
+.occ-tag{
+  font-size:10px;padding:3px 10px;border-radius:20px;
+  background:rgba(184,146,58,0.12);border:1px solid rgba(184,146,58,0.25);
+  color:var(--gold2);letter-spacing:0.05em;
+}
+
+/* ── RECOMMENDATIONS STRIP ── */
+#recoStrip{
+  position:absolute;bottom:0;left:0;right:0;z-index:21;
+  transform:translateY(100%);transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+#recoStrip.show{transform:translateY(0)}
+
+/* ── BOTTOM PANEL ── */
+#bottomPanel{
+  flex-shrink:0;background:var(--ink2);
+  border-top:1px solid rgba(255,255,255,0.05);
+  padding:14px 16px max(16px,env(safe-area-inset-bottom));
+  z-index:30;
+}
+.panel-tabs{display:flex;gap:4px;margin-bottom:14px;background:var(--ink3);border-radius:10px;padding:4px}
+.tab-btn{
+  flex:1;height:32px;border:none;border-radius:8px;
+  font-family:var(--ff-body);font-size:12px;font-weight:500;
+  letter-spacing:0.05em;cursor:pointer;
+  background:transparent;color:var(--text3);transition:all 0.2s;
+}
+.tab-btn.active{background:var(--gold);color:var(--ink);font-weight:600}
+
+/* ── AI RECOMMENDATIONS TAB ── */
+#recoTab{display:block}
+.reco-header{
+  font-size:10px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--text3);margin-bottom:10px;
+}
+#recoList{
+  display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+#recoList::-webkit-scrollbar{display:none}
+.reco-card{
+  flex-shrink:0;width:130px;
+  background:var(--ink3);border:1.5px solid transparent;
+  border-radius:14px;padding:10px;cursor:pointer;
+  transition:all 0.25s;position:relative;overflow:hidden;
+}
+.reco-card.active{border-color:var(--gold)}
+.reco-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(184,146,58,0.06) 0%,transparent 60%);
+  opacity:0;transition:opacity 0.2s;
+}
+.reco-card.active::before{opacity:1}
+.reco-card:active{transform:scale(0.97)}
+.reco-img{
+  width:100%;height:52px;display:flex;align-items:center;
+  justify-content:center;margin-bottom:8px;
+  background:rgba(255,255,255,0.03);border-radius:8px;overflow:hidden;
+}
+.reco-img img{max-width:100%;max-height:100%;object-fit:contain}
+.reco-img canvas{max-width:100%;max-height:100%}
+.reco-match{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;
+}
+.reco-pct{font-size:15px;font-weight:600;color:var(--gold2)}
+.reco-badge{
+  font-size:8px;padding:2px 6px;border-radius:8px;letter-spacing:0.05em;
+  font-weight:600;text-transform:uppercase;
+}
+.reco-badge.best{background:rgba(45,122,79,0.2);color:#5dba8a;border:1px solid rgba(45,122,79,0.3)}
+.reco-badge.good{background:rgba(184,146,58,0.15);color:var(--gold2);border:1px solid rgba(184,146,58,0.25)}
+.reco-name{font-size:11px;font-weight:600;color:var(--cream);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reco-type{font-size:10px;color:var(--text3)}
+.reco-reason{font-size:9px;color:rgba(255,255,255,0.45);margin-top:5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.no-reco{font-size:13px;color:var(--text3);text-align:center;padding:20px;width:100%}
+
+/* ── ALL FRAMES TAB ── */
+#allTab{display:none}
+.frames-filter{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px;scrollbar-width:none}
+.frames-filter::-webkit-scrollbar{display:none}
+.filter-pill{
+  flex-shrink:0;height:26px;padding:0 12px;border-radius:13px;
+  border:1px solid rgba(255,255,255,0.1);background:transparent;
+  font-family:var(--ff-body);font-size:11px;color:var(--text3);cursor:pointer;
+  transition:all 0.2s;white-space:nowrap;
+}
+.filter-pill.active{background:var(--gold);border-color:var(--gold);color:var(--ink);font-weight:600}
+#allFramesList{
+  display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+#allFramesList::-webkit-scrollbar{display:none}
+.frame-thumb{
+  flex-shrink:0;width:80px;
+  background:var(--ink3);border:1.5px solid transparent;
+  border-radius:12px;padding:8px 6px 6px;cursor:pointer;
+  transition:all 0.2s;text-align:center;
+}
+.frame-thumb.active{border-color:var(--gold)}
+.frame-thumb:active{transform:scale(0.95)}
+.frame-thumb-img{width:68px;height:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;overflow:hidden}
+.frame-thumb-img img{max-width:100%;max-height:100%;object-fit:contain}
+.frame-thumb-name{font-size:9px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frame-thumb.active .frame-thumb-name{color:var(--gold2)}
+.empty-frames{font-size:12px;color:var(--text3);text-align:center;padding:16px;width:100%}
+
+/* ── ACTIONS BAR ── */
+#actionsBar{display:flex;gap:8px;margin-top:12px}
+#captureBtn{
+  flex:1;height:46px;
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold2) 100%);
+  color:var(--ink);border:none;border-radius:12px;
+  font-family:var(--ff-body);font-size:14px;font-weight:600;
+  letter-spacing:0.04em;cursor:pointer;
+  box-shadow:0 4px 16px rgba(184,146,58,0.3);
+  transition:transform 0.15s,box-shadow 0.15s;
+}
+#captureBtn:active{transform:scale(0.97);box-shadow:0 2px 8px rgba(184,146,58,0.2)}
+.icon-btn{
+  width:46px;height:46px;border-radius:12px;
+  background:var(--ink3);border:1px solid rgba(255,255,255,0.07);
+  font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all 0.2s;
+}
+.icon-btn:active{transform:scale(0.95)}
+.icon-btn.on{background:rgba(184,146,58,0.15);border-color:rgba(184,146,58,0.3)}
+
+/* ── FRAME DETAIL SHEET ── */
+#detailSheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:var(--ink2);border-radius:24px 24px 0 0;
+  padding:20px 20px max(24px,env(safe-area-inset-bottom));
+  transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow:0 -8px 40px rgba(0,0,0,0.5);
+  max-height:88vh;overflow-y:auto;
+}
+#detailSheet.show{transform:translateY(0)}
+.sheet-handle{width:40px;height:4px;background:rgba(255,255,255,0.12);border-radius:2px;margin:0 auto 16px}
+.sheet-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.sheet-info{flex:1}
+.sheet-name{font-family:var(--ff-display);font-size:20px;font-weight:700;color:var(--cream);margin-bottom:4px}
+.sheet-price{font-size:20px;font-weight:600;color:var(--gold2);margin-bottom:3px}
+.sheet-type{font-size:11px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase}
+.sheet-match-pill{
+  flex-shrink:0;margin-left:12px;padding:6px 14px;border-radius:20px;
+  background:rgba(45,122,79,0.15);border:1px solid rgba(45,122,79,0.3);
+  font-size:15px;font-weight:700;color:#5dba8a;white-space:nowrap;
+}
+/* gallery */
+.sheet-gallery{display:flex;gap:10px;margin-bottom:14px}
+.gallery-slot{
+  flex:1;border-radius:12px;overflow:hidden;
+  border:1.5px solid rgba(255,255,255,0.06);
+  background:rgba(255,255,255,0.03);transition:border-color 0.2s;cursor:pointer;
+}
+.gallery-slot.active{border-color:var(--gold)}
+.gallery-img{width:100%;height:90px;display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden}
+.gallery-img img{max-width:100%;max-height:100%;object-fit:contain}
+.gallery-img .no-side{font-size:10px;color:var(--text3);text-align:center;padding:4px;line-height:1.5}
+.gallery-label{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);text-align:center;padding:5px 0;border-top:1px solid rgba(255,255,255,0.05)}
+.gallery-slot.active .gallery-label{color:var(--gold2)}
+/* temple */
+.sheet-temple{background:rgba(184,146,58,0.06);border:1px solid rgba(184,146,58,0.15);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.sheet-temple-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold2);margin-bottom:4px}
+.sheet-temple-text{font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6}
+.sheet-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.sheet-tag{font-size:10px;padding:4px 10px;border-radius:20px;background:var(--ink3);color:var(--text3);border:1px solid rgba(255,255,255,0.06)}
+.sheet-divider{height:1px;background:rgba(255,255,255,0.06);margin-bottom:12px}
+.sheet-ai-title{font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold2);margin-bottom:6px}
+.sheet-ai-text{font-size:13px;color:rgba(255,255,255,0.65);line-height:1.7}
+.sheet-match-bar{height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin:8px 0 10px;overflow:hidden}
+.sheet-match-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold3));border-radius:3px;transition:width 0.8s ease}
+.sheet-close{
+  position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;
+  background:var(--ink3);border:none;color:var(--text3);
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+
+/* ── OVERLAY (sheet backdrop) ── */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99;opacity:0;pointer-events:none;transition:opacity 0.3s}
+#overlay.show{opacity:1;pointer-events:auto}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:200px;left:50%;transform:translateX(-50%) translateY(16px);
+  background:rgba(28,25,23,0.96);border:1px solid rgba(184,146,58,0.3);
+  color:var(--cream);padding:10px 20px;border-radius:24px;font-size:13px;
+  z-index:300;opacity:0;transition:opacity 0.3s,transform 0.3s;white-space:nowrap;pointer-events:none;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── NO STOCK MSG ── */
+#noStockMsg{
+  position:absolute;inset:0;display:none;
+  flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(14,12,10,0.92);z-index:15;gap:12px;padding:32px;text-align:center;
+}
+#noStockMsg.show{display:flex}
+.no-stock-icon{font-size:48px;margin-bottom:4px}
+.no-stock-title{font-family:var(--ff-display);font-size:22px;color:var(--cream)}
+.no-stock-sub{font-size:13px;color:var(--text3);line-height:1.6;max-width:260px}
+</style>
+</head>
+<body>
+
+<!-- PERMISSION -->
+<div id="permScreen">
+  <div class="perm-logo">OpticAI · Virtual Studio</div>
+  <div class="perm-icon">👓</div>
+  <h1 class="perm-title">Try Before<br><em>You Buy</em></h1>
+  <p class="perm-sub">AI-powered face analysis finds the frames that suit you best — from our actual collection.</p>
+  <button class="perm-btn" onclick="startApp()">Start Try-On Experience</button>
+  <p class="perm-note">Camera stays on your device. Nothing is recorded or stored.</p>
+</div>
+
+<!-- LOADING -->
+<div id="loadScreen">
+  <div class="load-logo">Optic<span>AI</span></div>
+  <div class="load-bar-wrap"><div class="load-bar" id="loadBar"></div></div>
+  <div class="load-text" id="loadText">Initializing…</div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div id="viewport">
+    <video id="inputVideo" playsinline muted autoplay></video>
+    <canvas id="outputCanvas"></canvas>
+
+    <div id="topBar">
+      <div class="top-brand">Optic<span>AI</span></div>
+      <div id="trackBadge">
+        <div class="track-dot seeking" id="trackDot"></div>
+        <span id="trackText">Scanning…</span>
+      </div>
+    </div>
+
+    <div id="analysisCard">
+      <div class="analysis-top">
+        <div class="analysis-shape">
+          <small>Face Shape</small>
+          <span id="shapeLabel">—</span>
+        </div>
+        <div class="analysis-metrics">
+          <div class="metric">
+            <div class="metric-val" id="metricW">—</div>
+            <div class="metric-label">Width</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val" id="metricR">—</div>
+            <div class="metric-label">Ratio</div>
+          </div>
+        </div>
+      </div>
+      <div class="analysis-desc" id="shapeDesc"></div>
+      <div class="analysis-occasions" id="shapeOcc"></div>
+    </div>
+
+    <div id="noStockMsg">
+      <div class="no-stock-icon">🗂️</div>
+      <div class="no-stock-title">No Frames Yet</div>
+      <div class="no-stock-sub">Open the Admin Panel on a computer to upload your frame collection.</div>
+    </div>
+  </div>
+
+  <div id="bottomPanel">
+    <div class="panel-tabs">
+      <button class="tab-btn active" id="tabReco" onclick="switchTab('reco')">✨ AI Picks For You</button>
+      <button class="tab-btn" id="tabAll" onclick="switchTab('all')">All Frames</button>
+    </div>
+
+    <!-- RECO TAB -->
+    <div id="recoTab">
+      <div class="reco-header" id="recoHeader">Analyzing your face…</div>
+      <div id="recoList"><div class="no-reco">Point camera at your face to get personalized recommendations</div></div>
+    </div>
+
+    <!-- ALL FRAMES TAB -->
+    <div id="allTab">
+      <div class="frames-filter" id="framesFilter"></div>
+      <div id="allFramesList"><div class="empty-frames">No frames in collection yet</div></div>
+    </div>
+
+    <div id="actionsBar">
+      <button id="captureBtn" onclick="capturePhoto()">📸 Capture Look</button>
+      <button class="icon-btn" id="debugBtn" onclick="toggleDebug()" title="Landmarks">🎯</button>
+      <button class="icon-btn" id="infoBtn" onclick="toggleAnalysis()" title="Analysis">📊</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL SHEET -->
+<div id="overlay" onclick="closeSheet()"></div>
+<div id="detailSheet">
+  <div class="sheet-handle"></div>
+  <button class="sheet-close" onclick="closeSheet()">✕</button>
+
+  <!-- Frame name + price -->
+  <div class="sheet-top">
+    <div class="sheet-info">
+      <div class="sheet-name" id="sheetName"></div>
+      <div class="sheet-price" id="sheetPrice"></div>
+      <div class="sheet-type" id="sheetType"></div>
+    </div>
+    <div class="sheet-match-pill" id="sheetMatchPill"></div>
+  </div>
+
+  <!-- PHOTO GALLERY: Front + Side -->
+  <div class="sheet-gallery" id="sheetGallery">
+    <div class="gallery-slot active" id="galleryFront">
+      <div class="gallery-img" id="sheetImgFront"></div>
+      <div class="gallery-label">Front View</div>
+    </div>
+    <div class="gallery-slot" id="gallerySide">
+      <div class="gallery-img" id="sheetImgSide"></div>
+      <div class="gallery-label">Side View</div>
+    </div>
+  </div>
+
+  <div class="sheet-tags" id="sheetTags"></div>
+
+  <!-- Temple info -->
+  <div class="sheet-temple" id="sheetTempleWrap" style="display:none">
+    <div class="sheet-temple-label">🦾 Temple / Arms</div>
+    <div class="sheet-temple-text" id="sheetTempleText"></div>
+  </div>
+
+  <div class="sheet-divider"></div>
+  <div class="sheet-ai-title">✨ AI Stylist Says</div>
+  <div class="sheet-match-bar"><div class="sheet-match-fill" id="sheetMatchFill"></div></div>
+  <div class="sheet-ai-text" id="sheetAiText"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  STORAGE — frames saved by admin, read here
+// ════════════════════════════════════════════════════════════════
+const DB_KEY = 'opticai_frames_v2';
+
+function getFrames() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  FACE SHAPE DATA
+// ════════════════════════════════════════════════════════════════
+const FACE_SHAPES = {
+  oval: {
+    label: 'Oval',
+    desc: 'Balanced proportions with a slightly wider forehead and gentle jaw. The most versatile face shape — almost any frame style works well.',
+    styles: ['Round','Square','Aviator','Cat Eye','Wayfarer','Rectangular'],
+    avoid: 'Very small frames that hide your features',
+    occasions: ['Daily Wear','Office','Evening','Sports'],
+    styleScore: { round:92, square:95, aviator:96, cateye:88, wayfarer:94, rectangular:93 }
+  },
+  round: {
+    label: 'Round',
+    desc: 'Similar width and height with soft, curved edges. Angular frames create a striking contrast that adds definition and makes your face appear slimmer.',
+    styles: ['Wayfarer','Rectangular','Square','Cat Eye'],
+    avoid: 'Round or oval frames that echo the face shape',
+    occasions: ['Office','Formal','Street Style'],
+    styleScore: { round:55, square:94, aviator:78, cateye:90, wayfarer:96, rectangular:95 }
+  },
+  square: {
+    label: 'Square',
+    desc: 'Strong jawline with equal width and height. Softer, rounded frames balance the angular features beautifully and add a relaxed, confident look.',
+    styles: ['Round','Oval','Aviator','Rimless'],
+    avoid: 'Square or boxy frames that over-emphasize jaw angles',
+    occasions: ['Casual','Outdoor','Weekend'],
+    styleScore: { round:95, square:60, aviator:92, cateye:82, wayfarer:74, rectangular:65 }
+  },
+  heart: {
+    label: 'Heart',
+    desc: 'Wider forehead tapering to a narrower chin. Bottom-heavy or lightweight frames balance the face by drawing attention downward.',
+    styles: ['Aviator','Round','Oval','Rimless'],
+    avoid: 'Top-heavy or decorative frames that widen the forehead',
+    occasions: ['Daily Wear','Romantic','Casual'],
+    styleScore: { round:90, square:72, aviator:95, cateye:68, wayfarer:76, rectangular:70 }
+  },
+  oblong: {
+    label: 'Oblong',
+    desc: 'Longer than wide with a straight cheekline. Wide, oversized frames with depth add width and break the vertical length perfectly.',
+    styles: ['Aviator','Wayfarer','Oversized Round','Cat Eye'],
+    avoid: 'Narrow or small frames that elongate the face further',
+    occasions: ['Fashion','Street Style','Travel'],
+    styleScore: { round:88, square:82, aviator:94, cateye:92, wayfarer:90, rectangular:72 }
+  },
+  diamond: {
+    label: 'Diamond',
+    desc: 'Narrow forehead and jaw with wide cheekbones. Frames with detailing on the top or rimless styles complement this distinctive shape.',
+    styles: ['Cat Eye','Oval','Rimless','Brow-Line'],
+    avoid: 'Narrow or rectangular frames that emphasize width',
+    occasions: ['Evening','Fashion','Office'],
+    styleScore: { round:84, square:76, aviator:88, cateye:96, wayfarer:82, rectangular:78 }
+  }
+};
+
+// ════════════════════════════════════════════════════════════════
+//  AI FRAME SCORING ENGINE
+// ════════════════════════════════════════════════════════════════
+function scoreFrame(frame, faceData) {
+  if (!faceData || !frame) return 50;
+  const shapeData = FACE_SHAPES[faceData.shape] || FACE_SHAPES.oval;
+
+  let score = 50;
+  const shape = (frame.shape || '').toLowerCase();
+
+  // Shape compatibility (40 pts)
+  const shapeMap = {
+    round: shapeData.styleScore.round,
+    oval: (shapeData.styleScore.round + shapeData.styleScore.rectangular) / 2,
+    square: shapeData.styleScore.square,
+    rectangular: shapeData.styleScore.rectangular,
+    wayfarer: shapeData.styleScore.wayfarer,
+    aviator: shapeData.styleScore.aviator,
+    cateye: shapeData.styleScore.cateye,
+    'cat eye': shapeData.styleScore.cateye,
+  };
+  const baseScore = shapeMap[shape] || 72;
+  score = baseScore;
+
+  // Size penalty if too small/large for face (5 pts)
+  const size = (frame.size || '').toLowerCase();
+  const faceRatio = faceData.ratio || 0.78;
+  if (size === 'small' && faceRatio < 0.70) score -= 5;
+  if (size === 'large' && faceRatio > 0.90) score -= 5;
+  if (size === 'xl' && faceRatio > 0.90) score -= 8;
+
+  // Gender bonus (2 pts)
+  // No deduction — unisex frames for everyone
+
+  // Clamp
+  return Math.min(99, Math.max(35, Math.round(score)));
+}
+
+function getReasonText(frame, faceData, score) {
+  if (!faceData) return '';
+  const shape = FACE_SHAPES[faceData.shape] || FACE_SHAPES.oval;
+  const frameShape = (frame.shape || 'this style').toLowerCase();
+
+  if (score >= 90) {
+    return `${frameShape} frames are ideal for ${shape.label} faces — ${shape.styles[0]} styles balance your proportions perfectly.`;
+  } else if (score >= 80) {
+    return `A strong match. ${frameShape} adds complementary contrast to your ${shape.label} face shape.`;
+  } else if (score >= 70) {
+    return `A good choice. Works well with your features, especially for ${shape.occasions[0].toLowerCase()}.`;
+  } else {
+    return `A style statement pick. Less conventional for your face shape but can work with the right fit.`;
+  }
+}
+
+function getAIStyleDescription(frame, faceData, score) {
+  if (!faceData) return 'Try this frame to see how it looks on you.';
+  const shape = FACE_SHAPES[faceData.shape] || FACE_SHAPES.oval;
+  const frameShape = frame.shape || 'this style';
+  const material = frame.material || 'crafted';
+  const occasions = (frame.occasions || []).join(', ') || shape.occasions.slice(0,2).join(' & ');
+
+  return `This ${frameShape} frame in ${material} is a ${score >= 88 ? 'top-tier' : score >= 75 ? 'strong' : 'solid'} match for your ${shape.label} face. ${shape.desc.split('.')[0]}. Best suited for ${occasions.toLowerCase()} — it ${score >= 85 ? 'accentuates your natural symmetry and adds' : 'provides'} a ${score >= 88 ? 'highly flattering' : 'balanced'} look.`;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  LANDMARK INDICES
+// ════════════════════════════════════════════════════════════════
+const LM = {
+  L_EYE_IN:133, L_EYE_OUT:33, L_EYE_TOP:159, L_EYE_BOT:145,
+  R_EYE_IN:362, R_EYE_OUT:263, R_EYE_TOP:386, R_EYE_BOT:374,
+  NOSE_TOP:168, NOSE_MID:6, NOSE_TIP:1,
+  L_CHEEK:234, R_CHEEK:454,
+  CHIN:152, FOREHEAD:10,
+  L_JAW:172, R_JAW:397,
+  L_TEMPLE:103, R_TEMPLE:332,
+};
+
+// ════════════════════════════════════════════════════════════════
+//  SMOOTHING
+// ════════════════════════════════════════════════════════════════
+const ALPHA = 0.60;
+let smoothed = null;
+function ema(prev, next) {
+  if (!prev) return { ...next };
+  const out = {};
+  for (const k in next) out[k] = prev[k] * ALPHA + next[k] * (1 - ALPHA);
+  return out;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  FACE ANALYSIS
+// ════════════════════════════════════════════════════════════════
+let lastFaceData = null;
+let analysisTimer = null;
+
+function analyzeFace(lms, W, H) {
+  const p = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
+  const d = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+
+  const faceW = d(p(LM.L_CHEEK), p(LM.R_CHEEK));
+  const faceH = d(p(LM.FOREHEAD), p(LM.CHIN));
+  const jawW = d(p(LM.L_JAW), p(LM.R_JAW));
+  const foreheadW = d(p(LM.L_TEMPLE), p(LM.R_TEMPLE));
+  const ratio = faceH > 0 ? faceW / faceH : 0.78;
+
+  let shape = 'oval';
+
+  if (ratio > 0.88) {
+    shape = 'round';
+  } else if (ratio < 0.68) {
+    shape = 'oblong';
+  } else {
+    const jawRatio = foreheadW > 0 ? jawW / foreheadW : 1;
+    const cheekToJaw = jawW > 0 ? faceW / jawW : 1;
+
+    if (cheekToJaw > 1.22 && ratio < 0.80) {
+      shape = 'diamond';
+    } else if (jawRatio > 1.08) {
+      shape = 'heart';
+    } else if (jawRatio < 0.88) {
+      shape = 'square';
+    } else {
+      shape = 'oval';
+    }
+  }
+
+  return { shape, ratio: Math.round(ratio * 100) / 100, faceW: Math.round(faceW), faceH: Math.round(faceH) };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  EXTRACT OVERLAY PARAMS
+// ════════════════════════════════════════════════════════════════
+function extractParams(lms, W, H) {
+  const p = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const d = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+
+  const lEye = mid(p(LM.L_EYE_IN), p(LM.L_EYE_OUT));
+  const rEye = mid(p(LM.R_EYE_IN), p(LM.R_EYE_OUT));
+
+  // Eye height for lens height scaling
+  const lEyeH = d(p(LM.L_EYE_TOP), p(LM.L_EYE_BOT));
+  const rEyeH = d(p(LM.R_EYE_TOP), p(LM.R_EYE_BOT));
+  const eyeOpenness = (lEyeH + rEyeH) / 2;
+
+  const cx = (lEye.x + rEye.x) / 2;
+  const cy = (lEye.y + rEye.y) / 2;
+  const eyeDist = d(lEye, rEye);
+  const angle = Math.atan2(rEye.y - lEye.y, rEye.x - lEye.x);
+
+  const noseBridge = p(LM.NOSE_TOP);
+  const noseMid = p(LM.NOSE_MID);
+
+  const faceW = d(p(LM.L_CHEEK), p(LM.R_CHEEK));
+
+  // Lens sizing — based on eye distance, natural proportions
+  const lensW = eyeDist * 1.08;
+  const lensH = Math.max(lensW * 0.52, eyeOpenness * 3.2);
+
+  // Vertical anchor: frames sit just at eye level, anchored to nose bridge
+  const bridgePull = (noseBridge.y - cy) * 0.12;
+
+  return {
+    cx, cy: cy + bridgePull,
+    lEye, rEye, eyeDist, faceW,
+    angle, lensW, lensH,
+    noseBridge, noseMid,
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  FRAME OVERLAY RENDERER — using uploaded PNG images
+// ════════════════════════════════════════════════════════════════
+const imgCache = {};
+
+function getImg(src) {
+  if (!src) return null;
+  if (imgCache[src]) return imgCache[src].complete ? imgCache[src] : null;
+  const img = new Image();
+  img.src = src;
+  imgCache[src] = img;
+  return null;
+}
+
+function drawFrameOverlay(ctx, frame, p) {
+  if (!frame) return;
+
+  if (frame.imageData) {
+    // Real PNG from stock
+    const img = getImg(frame.imageData);
+    if (!img) return;
+
+    ctx.save();
+    ctx.translate(p.cx, p.cy);
+    ctx.rotate(p.angle);
+
+    const drawW = p.eyeDist * 2.35;
+    const drawH = drawW * (img.naturalHeight / img.naturalWidth);
+    const yOffset = p.lensH * 0.05;
+
+    ctx.drawImage(img, -drawW / 2, -drawH / 2 + yOffset, drawW, drawH);
+    ctx.restore();
+  } else {
+    // Fallback procedural drawing
+    drawProceduralFrame(ctx, frame, p);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PROCEDURAL FALLBACK FRAMES (for frames without images)
+// ════════════════════════════════════════════════════════════════
+function drawProceduralFrame(ctx, frame, p) {
+  const shape = (frame.shape || 'oval').toLowerCase();
+  const color = frame.color || '#1a1008';
+
+  ctx.save();
+  ctx.translate(p.cx, p.cy);
+  ctx.rotate(p.angle);
+
+  const lw = p.lensW * 0.98;
+  const lh = p.lensH * 1.05;
+  const offsetX = p.eyeDist * 0.5 - lw * 0.5;
+  const lineW = Math.max(2.5, p.faceW * 0.014);
+
+  ctx.lineWidth = lineW;
+  ctx.strokeStyle = color;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  if (shape === 'round' || shape === 'oval') {
+    for (const side of [-1, 1]) {
+      const x = side * (offsetX + lw * 0.5);
+      ctx.beginPath();
+      ctx.ellipse(x, 0, lw * 0.5, lh * 0.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(180,220,255,0.10)';
+      ctx.fill(); ctx.stroke();
+    }
+  } else if (shape === 'wayfarer' || shape === 'square' || shape === 'rectangular') {
+    const r = lw * 0.16;
+    for (const side of [-1, 1]) {
+      const x = side * (offsetX + lw * 0.5);
+      ctx.beginPath();
+      ctx.roundRect(x - lw * 0.5, -lh * 0.5, lw, lh, r);
+      ctx.fillStyle = 'rgba(10,5,2,0.5)';
+      ctx.fill(); ctx.stroke();
+    }
+  } else if (shape === 'aviator') {
+    for (const side of [-1, 1]) {
+      const x = side * (offsetX + lw * 0.5);
+      const y0 = -lh * 0.42, y1 = lh * 0.58;
+      ctx.beginPath();
+      ctx.moveTo(x - lw * 0.5, y0); ctx.lineTo(x + lw * 0.5, y0);
+      ctx.bezierCurveTo(x + lw * 0.5, 0, x + lw * 0.35, y1, x, y1);
+      ctx.bezierCurveTo(x - lw * 0.35, y1, x - lw * 0.5, 0, x - lw * 0.5, y0);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(210,230,255,0.10)';
+      ctx.fill(); ctx.stroke();
+    }
+  } else if (shape === 'cat eye' || shape === 'cateye') {
+    for (const side of [-1, 1]) {
+      const x = side * (offsetX + lw * 0.5);
+      const x0 = x - lw * 0.5, x1 = x + lw * 0.5;
+      const y0 = -lh * 0.5, y1 = lh * 0.5;
+      const wX = side < 0 ? x0 - lw * 0.22 : x1 + lw * 0.22;
+      const wY = y0 - lh * 0.3;
+      ctx.beginPath();
+      if (side < 0) {
+        ctx.moveTo(wX, wY); ctx.lineTo(x1, y0 + lh * 0.1);
+        ctx.bezierCurveTo(x1, y1, x0, y1, x0, y1 * 0.5);
+        ctx.bezierCurveTo(x0, y0 + lh * 0.05, x0 + lw * 0.1, y0, wX, wY);
+      } else {
+        ctx.moveTo(wX, wY); ctx.lineTo(x0, y0 + lh * 0.1);
+        ctx.bezierCurveTo(x0, y1, x1, y1, x1, y1 * 0.5);
+        ctx.bezierCurveTo(x1, y0 + lh * 0.05, x1 - lw * 0.1, y0, wX, wY);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(80,10,60,0.22)';
+      ctx.fill(); ctx.stroke();
+    }
+  } else {
+    // default oval
+    for (const side of [-1, 1]) {
+      const x = side * (offsetX + lw * 0.5);
+      ctx.beginPath();
+      ctx.ellipse(x, 0, lw * 0.5, lh * 0.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(180,220,255,0.10)';
+      ctx.fill(); ctx.stroke();
+    }
+  }
+
+  // Bridge
+  ctx.lineWidth = Math.max(2, lineW * 0.85);
+  ctx.beginPath();
+  ctx.moveTo(-offsetX + lw * 0.5, -lh * 0.05);
+  ctx.quadraticCurveTo(0, lh * 0.2, offsetX - lw * 0.5, -lh * 0.05);
+  ctx.stroke();
+
+  // Temples
+  const armLen = p.faceW * 0.28;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(side * (offsetX + lw), 0);
+    ctx.lineTo(side * (offsetX + lw + armLen), p.lensH * 0.12);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DEBUG LANDMARKS
+// ════════════════════════════════════════════════════════════════
+let showDebug = false;
+function drawDebug(ctx, lms, W, H) {
+  const keys = Object.values(LM);
+  ctx.fillStyle = 'rgba(212,168,75,0.85)';
+  for (const i of keys) {
+    const lm = lms[i];
+    ctx.beginPath();
+    ctx.arc((1 - lm.x) * W, lm.y * H, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════════
+const state = {
+  frames: [],
+  activeFrameId: null,
+  modelLoaded: false,
+  faceData: null,
+  analysisVisible: true,
+  currentTab: 'reco',
+  activeFilter: 'all',
+  recoComputed: false,
+  scored: [],
+};
+
+// ════════════════════════════════════════════════════════════════
+//  CANVAS
+// ════════════════════════════════════════════════════════════════
+const video = document.getElementById('inputVideo');
+const canvas = document.getElementById('outputCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const vp = document.getElementById('viewport');
+  canvas.width = vp.offsetWidth;
+  canvas.height = vp.offsetHeight;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MEDIAPIPE RESULTS HANDLER
+// ════════════════════════════════════════════════════════════════
+function onResults(results) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Mirror video
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.drawImage(results.image, -W, 0, W, H);
+  ctx.restore();
+
+  if (!results.multiFaceLandmarks?.length) {
+    setTrack('seeking', 'Scanning…');
+    smoothed = null;
+    return;
+  }
+
+  setTrack('on', 'Face tracked');
+
+  const lms = results.multiFaceLandmarks[0];
+  const raw = extractParams(lms, W, H);
+  smoothed = ema(smoothed, raw);
+  const p = smoothed;
+
+  // Debug
+  if (showDebug) drawDebug(ctx, lms, W, H);
+
+  // Get active frame
+  const frame = state.frames.find(f => f.id === state.activeFrameId) || state.frames[0] || null;
+
+  // Draw overlay
+  if (frame) drawFrameOverlay(ctx, frame, p);
+  else if (state.frames.length === 0) {
+    // Show "no stock" only once
+  }
+
+  // Throttled face analysis
+  clearTimeout(analysisTimer);
+  analysisTimer = setTimeout(() => {
+    const fd = analyzeFace(lms, W, H);
+    if (!state.faceData || fd.shape !== state.faceData.shape) {
+      state.faceData = fd;
+      state.recoComputed = false;
+    }
+    updateAnalysisCard(fd);
+    if (!state.recoComputed) computeRecommendations();
+  }, 800);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UI UPDATES
+// ════════════════════════════════════════════════════════════════
+function setTrack(type, text) {
+  const dot = document.getElementById('trackDot');
+  dot.className = `track-dot ${type}`;
+  document.getElementById('trackText').textContent = text;
+}
+
+function updateAnalysisCard(fd) {
+  const shape = FACE_SHAPES[fd.shape] || FACE_SHAPES.oval;
+  document.getElementById('shapeLabel').textContent = shape.label;
+  document.getElementById('metricW').textContent = fd.faceW + 'px';
+  document.getElementById('metricR').textContent = fd.ratio.toFixed(2);
+  document.getElementById('shapeDesc').textContent = shape.desc;
+
+  const occEl = document.getElementById('shapeOcc');
+  occEl.innerHTML = shape.occasions.map(o => `<span class="occ-tag">${o}</span>`).join('');
+
+  if (state.analysisVisible) {
+    document.getElementById('analysisCard').classList.add('show');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RECOMMENDATIONS ENGINE
+// ════════════════════════════════════════════════════════════════
+function computeRecommendations() {
+  if (!state.faceData || state.frames.length === 0) {
+    document.getElementById('recoList').innerHTML = '<div class="no-reco">Point camera at your face to get recommendations</div>';
+    document.getElementById('recoHeader').textContent = 'Waiting for face detection…';
+    return;
+  }
+
+  const fd = state.faceData;
+  const shape = FACE_SHAPES[fd.shape] || FACE_SHAPES.oval;
+
+  // Score all frames
+  const scored = state.frames.map(f => ({
+    frame: f,
+    score: scoreFrame(f, fd),
+  })).sort((a, b) => b.score - a.score);
+
+  state.scored = scored;
+  state.recoComputed = true;
+
+  // Top picks (score >= 75, max 6)
+  const topPicks = scored.filter(s => s.score >= 75).slice(0, 6);
+  const displayPicks = topPicks.length > 0 ? topPicks : scored.slice(0, 4);
+
+  const shapeData = FACE_SHAPES[fd.shape] || FACE_SHAPES.oval;
+  document.getElementById('recoHeader').textContent =
+    `${shapeData.label} face · ${displayPicks.length} perfect match${displayPicks.length !== 1 ? 'es' : ''} found`;
+
+  const list = document.getElementById('recoList');
+  list.innerHTML = '';
+
+  displayPicks.forEach(({ frame, score }, idx) => {
+    const card = document.createElement('div');
+    card.className = 'reco-card' + (frame.id === state.activeFrameId ? ' active' : '');
+    card.dataset.id = frame.id;
+
+    const reason = getReasonText(frame, fd, score);
+    const isBest = idx === 0;
+    const badgeClass = isBest ? 'best' : 'good';
+    const badgeText = isBest ? 'Best' : score >= 88 ? 'Great' : 'Good';
+
+    card.innerHTML = `
+      <div class="reco-img">${getFrameImgHtml(frame, 100, 48)}</div>
+      <div class="reco-match">
+        <span class="reco-pct">${score}%</span>
+        <span class="reco-badge ${badgeClass}">${badgeText}</span>
+      </div>
+      <div class="reco-name">${frame.name}</div>
+      <div class="reco-type">${frame.shape || ''} · ${frame.type || 'Eyeglass'}</div>
+      <div class="reco-reason">${reason}</div>
+    `;
+
+    card.addEventListener('click', () => {
+      selectFrame(frame.id);
+      openSheet(frame);
+    });
+
+    list.appendChild(card);
+  });
+
+  // Auto-select best
+  if (displayPicks.length > 0 && !state.activeFrameId) {
+    selectFrame(displayPicks[0].frame.id);
+  }
+}
+
+function getFrameImgHtml(frame, w, h) {
+  if (frame.imageData) {
+    return `<img src="${frame.imageData}" style="max-width:${w}px;max-height:${h}px;object-fit:contain">`;
+  }
+  // Placeholder icon by shape
+  const icons = { round:'⭕', oval:'🔵', square:'🔲', wayfarer:'🕶️', aviator:'✈️', cateye:'😺', 'cat eye':'😺' };
+  const icon = icons[(frame.shape || '').toLowerCase()] || '🕶️';
+  return `<span style="font-size:28px">${icon}</span>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  FRAME SELECTION
+// ════════════════════════════════════════════════════════════════
+function selectFrame(id) {
+  state.activeFrameId = id;
+  smoothed = null;
+
+  // Update reco cards
+  document.querySelectorAll('.reco-card').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+  // Update thumb cards
+  document.querySelectorAll('.frame-thumb').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ALL FRAMES TAB
+// ════════════════════════════════════════════════════════════════
+function buildAllFrames() {
+  const frames = state.frames;
+
+  // Build filters
+  const types = ['all', ...new Set(frames.map(f => f.type || 'Eyeglass'))];
+  const filterEl = document.getElementById('framesFilter');
+  filterEl.innerHTML = types.map(t =>
+    `<button class="filter-pill${t === state.activeFilter ? ' active' : ''}" onclick="setFilter('${t}')">${t === 'all' ? 'All' : t}</button>`
+  ).join('');
+
+  renderAllFrames();
+}
+
+function setFilter(type) {
+  state.activeFilter = type;
+  buildAllFrames();
+}
+
+function renderAllFrames() {
+  const list = document.getElementById('allFramesList');
+  const filtered = state.activeFilter === 'all'
+    ? state.frames
+    : state.frames.filter(f => (f.type || 'Eyeglass') === state.activeFilter);
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-frames">No frames in this category</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  filtered.forEach(frame => {
+    const el = document.createElement('div');
+    el.className = 'frame-thumb' + (frame.id === state.activeFrameId ? ' active' : '');
+    el.dataset.id = frame.id;
+    el.innerHTML = `
+      <div class="frame-thumb-img">${getFrameImgHtml(frame, 68, 32)}</div>
+      <div class="frame-thumb-name">${frame.name}</div>
+    `;
+    el.addEventListener('click', () => {
+      selectFrame(frame.id);
+      openSheet(frame);
+    });
+    list.appendChild(el);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DETAIL SHEET
+// ════════════════════════════════════════════════════════════════
+function openSheet(frame) {
+  const score = state.faceData ? scoreFrame(frame, state.faceData) : null;
+  const aiText = getAIStyleDescription(frame, state.faceData, score || 75);
+
+  // Basic info
+  document.getElementById('sheetName').textContent = frame.name;
+  document.getElementById('sheetPrice').textContent = frame.price ? `₹${frame.price}` : '';
+  document.getElementById('sheetType').textContent = [frame.type, frame.material, frame.gender].filter(Boolean).join(' · ');
+  document.getElementById('sheetMatchPill').textContent = score ? `${score}% match` : '';
+  document.getElementById('sheetMatchPill').style.display = score ? 'block' : 'none';
+
+  // Front view photo
+  const frontEl = document.getElementById('sheetImgFront');
+  frontEl.innerHTML = frame.imageData
+    ? `<img src="${frame.imageData}" alt="Front view">`
+    : `<span style="font-size:32px">${getShapeIcon(frame.shape)}</span>`;
+
+  // Side view photo
+  const sideEl = document.getElementById('sheetImgSide');
+  const gallerySide = document.getElementById('gallerySide');
+  if (frame.sideImageData) {
+    sideEl.innerHTML = `<img src="${frame.sideImageData}" alt="Side view">`;
+    gallerySide.style.opacity = '1';
+    gallerySide.style.pointerEvents = 'auto';
+  } else {
+    sideEl.innerHTML = `<div class="no-side">📷 Side view<br>not uploaded</div>`;
+    gallerySide.style.opacity = '0.5';
+    gallerySide.style.pointerEvents = 'none';
+  }
+
+  // Gallery tap to enlarge
+  document.getElementById('galleryFront').onclick = () => enlargeImage(frame.imageData, frame.name + ' — Front');
+  if (frame.sideImageData) {
+    gallerySide.onclick = () => enlargeImage(frame.sideImageData, frame.name + ' — Side');
+  }
+
+  // Temple info
+  const templeWrap = document.getElementById('sheetTempleWrap');
+  if (frame.templeInfo) {
+    document.getElementById('sheetTempleText').textContent = frame.templeInfo;
+    templeWrap.style.display = 'block';
+  } else {
+    templeWrap.style.display = 'none';
+  }
+
+  // Tags
+  const tags = [frame.shape, frame.size, frame.color, ...(frame.occasions || [])].filter(Boolean);
+  document.getElementById('sheetTags').innerHTML = tags.map(t => `<span class="sheet-tag">${t}</span>`).join('');
+
+  // AI analysis
+  document.getElementById('sheetMatchFill').style.width = score ? `${score}%` : '75%';
+  document.getElementById('sheetAiText').textContent = aiText;
+
+  document.getElementById('detailSheet').classList.add('show');
+  document.getElementById('overlay').classList.add('show');
+}
+
+// Enlarge image fullscreen tap
+function enlargeImage(src, title) {
+  if (!src) return;
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+  el.innerHTML = `
+    <div style="font-size:12px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:16px">${title}</div>
+    <img src="${src}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:12px">
+    <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:16px">Tap anywhere to close</div>
+  `;
+  el.onclick = () => document.body.removeChild(el);
+  document.body.appendChild(el);
+}
+
+function getShapeIcon(shape) {
+  const map = { round:'⭕', oval:'🔵', square:'🔲', rectangular:'⬛', wayfarer:'🕶️', aviator:'✈️', 'cat eye':'😺', cateye:'😺', rimless:'👁️', browline:'👓' };
+  return map[(shape||'').toLowerCase()] || '🕶️';
+}
+
+function closeSheet() {
+  document.getElementById('detailSheet').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ════════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  state.currentTab = tab;
+  document.getElementById('recoTab').style.display = tab === 'reco' ? 'block' : 'none';
+  document.getElementById('allTab').style.display = tab === 'all' ? 'block' : 'none';
+  document.getElementById('tabReco').classList.toggle('active', tab === 'reco');
+  document.getElementById('tabAll').classList.toggle('active', tab === 'all');
+  if (tab === 'all') buildAllFrames();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CAPTURE
+// ════════════════════════════════════════════════════════════════
+function capturePhoto() {
+  const tmp = document.createElement('canvas');
+  tmp.width = canvas.width;
+  tmp.height = canvas.height;
+  tmp.getContext('2d').drawImage(canvas, 0, 0);
+  tmp.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `opticai-${Date.now()}.jpg`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('📸 Photo saved!');
+  }, 'image/jpeg', 0.93);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════════════════
+function toggleDebug() {
+  showDebug = !showDebug;
+  document.getElementById('debugBtn').classList.toggle('on', showDebug);
+  showToast(showDebug ? 'Landmarks on' : 'Landmarks off');
+}
+
+function toggleAnalysis() {
+  state.analysisVisible = !state.analysisVisible;
+  document.getElementById('analysisCard').classList.toggle('show', state.analysisVisible && !!state.faceData);
+  document.getElementById('infoBtn').classList.toggle('on', state.analysisVisible);
+}
+
+let toastT;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  LOAD FRAMES FROM STORAGE
+// ════════════════════════════════════════════════════════════════
+function loadFrames() {
+  state.frames = getFrames();
+
+  if (state.frames.length === 0) {
+    document.getElementById('noStockMsg').classList.add('show');
+  } else {
+    document.getElementById('noStockMsg').classList.remove('show');
+    // Pre-cache all images
+    state.frames.forEach(f => { if (f.imageData) getImg(f.imageData); });
+    state.activeFrameId = state.frames[0].id;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MEDIAPIPE INIT
+// ════════════════════════════════════════════════════════════════
+async function initFaceMesh() {
+  setLoad(10, 'Loading AI model…');
+
+  const fm = new FaceMesh({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+  });
+
+  fm.setOptions({
+    maxNumFaces: 1,
+    refineLandmarks: true,
+    minDetectionConfidence: 0.55,
+    minTrackingConfidence: 0.50,
+  });
+
+  fm.onResults(onResults);
+  setLoad(50, 'Warming up…');
+  await fm.initialize();
+  setLoad(80, 'Starting camera…');
+  return fm;
+}
+
+async function initCamera(fm) {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+    audio: false,
+  });
+  video.srcObject = stream;
+  await new Promise(r => { video.onloadedmetadata = r; });
+  await video.play();
+
+  const cam = new Camera(video, {
+    onFrame: async () => { if (state.modelLoaded) await fm.send({ image: video }); },
+    width: 1280, height: 720,
+  });
+  await cam.start();
+  return cam;
+}
+
+function setLoad(pct, text) {
+  document.getElementById('loadBar').style.width = pct + '%';
+  document.getElementById('loadText').textContent = text;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  BOOTSTRAP
+// ════════════════════════════════════════════════════════════════
+async function startApp() {
+  document.getElementById('permScreen').classList.add('gone');
+  resizeCanvas();
+  window.addEventListener('resize', () => { resizeCanvas(); smoothed = null; });
+
+  loadFrames();
+
+  try {
+    const [fm] = await Promise.all([initFaceMesh()]);
+    setLoad(90, 'Almost ready…');
+    await initCamera(fm);
+    state.modelLoaded = true;
+    setLoad(100, 'Ready!');
+    setTimeout(() => document.getElementById('loadScreen').classList.add('gone'), 500);
+  } catch (err) {
+    console.error(err);
+    setLoad(100, 'Error');
+    setTimeout(() => document.getElementById('loadScreen').classList.add('gone'), 300);
+    const msg = err.name === 'NotAllowedError'
+      ? 'Camera permission denied.\n\niPhone: Settings → Safari → Camera → Allow\nAndroid: Tap the lock icon in address bar → Allow camera'
+      : `Camera error: ${err.message}`;
+    alert(msg);
+  }
+}
+
+// Listen for storage changes (admin updates frames)
+window.addEventListener('storage', (e) => {
+  if (e.key === DB_KEY) {
+    loadFrames();
+    state.recoComputed = false;
+    if (state.currentTab === 'all') buildAllFrames();
+    if (state.faceData) computeRecommendations();
+    showToast('✨ Frame collection updated!');
+  }
+});
+</script>
+</body>
+</html>
