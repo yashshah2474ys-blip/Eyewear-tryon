@@ -461,6 +461,8 @@ body{padding-bottom:60px}
 <canvas id="processingCanvas" style="display:none"></canvas>
 
 <script>
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+
 // ═══════════════════════════════════════════
 //  INDEXEDDB SETUP
 // ═══════════════════════════════════════════
@@ -560,7 +562,8 @@ async function handlePhoto(type, input) {
   indicator.classList.add('show');
 
   try {
-    const processed = await processImage(file, type === 'front');    photoData[type] = processed;
+    const processed = await processImage(file, type === 'front');
+    photoData[type] = processed;
 
     const zoneId = type === 'front' ? 'frontZone' : 'sideZone';
     const previewId = type === 'front' ? 'frontPreview' : 'sidePreview';
@@ -718,7 +721,7 @@ function autoTrim(canvas, ctx, w, h) {
     return canvas.toDataURL('image/png');
   }
 
-  const tw = maxX - minX, th = maxY - minY;
+  const tw = maxX - minX + 1, th = maxY - minY + 1;
   const trimCanvas = document.createElement('canvas');
   trimCanvas.width = tw; trimCanvas.height = th;
   const tctx = trimCanvas.getContext('2d');
@@ -776,7 +779,7 @@ function clearForm() {
 // ═══════════════════════════════════════════
 //  SAVE / EDIT FRAME
 // ═══════════════════════════════════════════
-async function saveFrame(editId) {
+async function saveFrame() {
   const name = document.getElementById('fName').value.trim();
   const gender = document.getElementById('fGender').value;
   const type = document.getElementById('fType').value;
@@ -786,10 +789,10 @@ async function saveFrame(editId) {
   if (!gender) { showToast('Please select gender', 'error'); return; }
   if (!type) { showToast('Please select frame type', 'error'); return; }
   if (!shape) { showToast('Please select frame shape', 'error'); return; }
-  if (!photoData.front && !editId) { showToast('Front photo is required', 'error'); return; }
+  if (!photoData.front) { showToast('Front photo is required', 'error'); return; }
 
   const frame = {
-    id: editId || ('frame_' + Date.now()),
+    id: 'frame_' + Date.now(),
     name,
     gender,
     type,
@@ -799,34 +802,20 @@ async function saveFrame(editId) {
     color: document.getElementById('fColor').value.trim(),
     occasions: getChecked('occasionGroup'),
     faceShapes: getChecked('faceShapeGroup'),
-    frontImage: photoData.front || (editId ? await getExistingImage(editId, 'front') : null),
-    sideImage: photoData.side || (editId ? await getExistingImage(editId, 'side') : null),
-    createdAt: editId ? undefined : Date.now(),
+    frontImage: photoData.front,
+    sideImage: photoData.side || null,
+    createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 
-  // If editing, preserve original createdAt
-  if (editId) {
-    const all = await dbGetAll();
-    const existing = all.find(f => f.id === editId);
-    if (existing) frame.createdAt = existing.createdAt;
-  }
-
   try {
     await dbPut(frame);
-    showToast(editId ? 'Frame updated!' : 'Frame saved!', 'success');
-    if (!editId) clearForm();
-    if (editId) closeModal();
+    showToast('Frame saved!', 'success');
+    clearForm();
     loadInventory();
   } catch (e) {
     showToast('Save failed: ' + e.message, 'error');
   }
-}
-
-async function getExistingImage(id, type) {
-  const all = await dbGetAll();
-  const frame = all.find(f => f.id === id);
-  return frame ? (type === 'front' ? frame.frontImage : frame.sideImage) : null;
 }
 
 // ═══════════════════════════════════════════
@@ -874,18 +863,18 @@ function renderInventory(frames) {
   grid.innerHTML = frames.map(f => `
     <div class="frame-card">
       <div class="frame-img-wrap">
-        ${f.frontImage ? `<img src="${f.frontImage}" alt="${f.name}" loading="lazy">` : '<div style="color:var(--muted);font-size:11px">No image</div>'}
+        ${f.frontImage ? `<img src="${f.frontImage}" alt="${esc(f.name)}" loading="lazy">` : '<div style="color:var(--muted);font-size:11px">No image</div>'}
       </div>
       <div class="frame-card-body">
-        <div class="frame-card-name" title="${f.name}">${f.name}</div>
+        <div class="frame-card-name" title="${esc(f.name)}">${esc(f.name)}</div>
         <div class="frame-card-meta">
-          <span class="meta-tag">${f.gender || '—'}</span>
-          <span class="meta-tag">${f.shape || '—'}</span>
-          ${f.size ? `<span class="meta-tag">${f.size}</span>` : ''}
+          <span class="meta-tag">${esc(f.gender || '—')}</span>
+          <span class="meta-tag">${esc(f.shape || '—')}</span>
+          ${f.size ? `<span class="meta-tag">${esc(f.size)}</span>` : ''}
         </div>
         <div class="frame-card-actions">
-          <button class="card-btn" onclick="openEditModal('${f.id}')">EDIT</button>
-          <button class="card-btn del" onclick="deleteFrame('${f.id}')">DELETE</button>
+          <button class="card-btn" onclick="openEditModal('${esc(f.id)}')">EDIT</button>
+          <button class="card-btn del" onclick="deleteFrame('${esc(f.id)}')">DELETE</button>
         </div>
       </div>
     </div>
@@ -920,7 +909,7 @@ async function openEditModal(id) {
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Frame Name</label>
-        <input class="form-input" id="efName" value="${frame.name}">
+        <input class="form-input" id="efName" value="${esc(frame.name)}">
       </div>
       <div class="form-group">
         <label class="form-label">Gender</label>
@@ -933,32 +922,32 @@ async function openEditModal(id) {
       <div class="form-group">
         <label class="form-label">Frame Type</label>
         <select class="form-input form-select" id="efType">
-          ${['full-rim','half-rim','rimless'].map(v=>`<option value="${v}" ${frame.type===v?'selected':''}>${v}</option>`).join('')}
+          ${['full-rim','half-rim','rimless'].map(v=>`<option value="${esc(v)}" ${frame.type===v?'selected':''}>${esc(v)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Frame Shape</label>
         <select class="form-input form-select" id="efShape">
-          ${['aviator','wayfarer','round','rectangle','square','cat-eye','geometric','oval','browline','sport'].map(v=>`<option value="${v}" ${frame.shape===v?'selected':''}>${v}</option>`).join('')}
+          ${['aviator','wayfarer','round','rectangle','square','cat-eye','geometric','oval','browline','sport'].map(v=>`<option value="${esc(v)}" ${frame.shape===v?'selected':''}>${esc(v)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Size</label>
         <select class="form-input form-select" id="efSize">
           <option value="">—</option>
-          ${['small','medium','large'].map(v=>`<option value="${v}" ${frame.size===v?'selected':''}>${v}</option>`).join('')}
+          ${['small','medium','large'].map(v=>`<option value="${esc(v)}" ${frame.size===v?'selected':''}>${esc(v)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Material</label>
         <select class="form-input form-select" id="efMaterial">
           <option value="">—</option>
-          ${['acetate','metal','titanium','mixed','plastic','wood'].map(v=>`<option value="${v}" ${frame.material===v?'selected':''}>${v}</option>`).join('')}
+          ${['acetate','metal','titanium','mixed','plastic','wood'].map(v=>`<option value="${esc(v)}" ${frame.material===v?'selected':''}>${esc(v)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group form-full">
         <label class="form-label">Color</label>
-        <input class="form-input" id="efColor" value="${frame.color || ''}">
+        <input class="form-input" id="efColor" value="${esc(frame.color || '')}">
       </div>
     </div>
     <div class="form-group" style="margin-top:14px">
@@ -1025,7 +1014,9 @@ async function exportData() {
   const a = document.createElement('a');
   a.href = url;
   a.download = `lensfit-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast(`Exported ${frames.length} frames`, 'success');
 }
