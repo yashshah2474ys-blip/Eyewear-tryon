@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LENSFIT — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e0f;--surface:#161618;--panel:#1e1e21;--border:#2c2c32;
+  --accent:#e8d5b0;--accent2:#7eb8a4;--danger:#d4756a;
+  --text:#f0ede8;--muted:#6e6e7a;--radius:14px;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px}
+body{padding-bottom:60px}
+
+/* HEADER */
+.header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(14,14,15,0.95);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;
+}
+.logo{font-family:'Instrument Serif',serif;font-size:20px;color:var(--accent);letter-spacing:0.02em}
+.logo span{color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;margin-left:8px;vertical-align:middle}
+.header-actions{display:flex;gap:10px}
+.btn{
+  padding:8px 16px;border-radius:8px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-family:'DM Mono',monospace;
+  font-size:11px;cursor:pointer;transition:all 0.2s;letter-spacing:0.05em;white-space:nowrap;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);color:#0e0e0f;border-color:var(--accent);font-weight:500}
+.btn.primary:hover{background:#f5e8ca}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn.danger:hover{background:rgba(212,117,106,0.1)}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--surface)}
+.tab{
+  padding:12px 20px;font-size:11px;letter-spacing:0.08em;color:var(--muted);
+  cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;
+  text-transform:uppercase;
+}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* CONTENT */
+.content{padding:20px;max-width:900px;margin:0 auto}
+
+/* UPLOAD FORM */
+.form-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;margin-bottom:20px;
+}
+.form-title{
+  font-family:'Instrument Serif',serif;font-size:16px;color:var(--accent);
+  margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border);
+}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-full{grid-column:1/-1}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase}
+.form-input{
+  background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;
+  outline:none;transition:border-color 0.2s;
+}
+.form-input:focus{border-color:var(--accent2)}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236e6e7a'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer}
+
+/* CHECKBOX GROUP */
+.check-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.check-item{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:20px;border:1px solid var(--border);
+  cursor:pointer;transition:all 0.2s;font-size:11px;color:var(--muted);
+  user-select:none;
+}
+.check-item input{display:none}
+.check-item.checked{border-color:var(--accent2);color:var(--accent2);background:rgba(126,184,164,0.08)}
+.check-dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:background 0.2s}
+.check-item.checked .check-dot{background:var(--accent2)}
+
+/* PHOTO UPLOAD */
+.photo-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.photo-zone{
+  border:1.5px dashed var(--border);border-radius:var(--radius);
+  padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;
+  position:relative;overflow:hidden;min-height:160px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  background:var(--panel);
+}
+.photo-zone:hover{border-color:var(--accent2)}
+.photo-zone.has-image{border-style:solid;border-color:var(--accent2)}
+.photo-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.photo-zone img{max-width:100%;max-height:120px;object-fit:contain;border-radius:6px}
+.photo-label{font-size:10px;color:var(--muted);letter-spacing:0.06em}
+.photo-badge{
+  position:absolute;top:8px;right:8px;
+  background:var(--accent2);color:#0e0e0f;font-size:9px;
+  padding:2px 7px;border-radius:10px;letter-spacing:0.05em;
+}
+.photo-remove{
+  position:absolute;top:8px;left:8px;
+  background:var(--danger);color:#fff;font-size:9px;
+  padding:2px 7px;border-radius:10px;cursor:pointer;z-index:2;
+  border:none;
+}
+
+/* PROCESSING INDICATOR */
+.processing{
+  display:none;align-items:center;gap:8px;
+  font-size:11px;color:var(--accent2);margin-top:8px;
+}
+.processing.show{display:flex}
+.spin{width:12px;height:12px;border:1.5px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* INVENTORY GRID */
+.inventory-header{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;
+}
+.inventory-count{font-size:11px;color:var(--muted)}
+.search-bar{
+  background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;
+  outline:none;width:220px;transition:border-color 0.2s;
+}
+.search-bar:focus{border-color:var(--accent2)}
+
+.frame-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.frame-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;transition:all 0.2s;cursor:pointer;
+}
+.frame-card:hover{border-color:var(--accent2);transform:translateY(-2px)}
+.frame-img-wrap{
+  background:var(--panel);height:130px;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.frame-img-wrap img{max-width:90%;max-height:110px;object-fit:contain}
+.frame-card-body{padding:12px}
+.frame-card-name{font-size:12px;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frame-card-meta{font-size:10px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap}
+.meta-tag{
+  background:var(--panel);border:1px solid var(--border);
+  padding:2px 7px;border-radius:10px;font-size:9px;color:var(--muted);
+}
+.frame-card-actions{display:flex;gap:6px;margin-top:10px}
+.card-btn{
+  flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-family:'DM Mono',monospace;
+  font-size:10px;cursor:pointer;transition:all 0.2s;
+}
+.card-btn:hover{border-color:var(--accent);color:var(--accent)}
+.card-btn.del:hover{border-color:var(--danger);color:var(--danger)}
+
+/* EMPTY STATE */
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--muted);
+}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:0.4}
+.empty-text{font-size:12px;line-height:1.8}
+
+/* MODAL */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  width:100%;max-width:600px;max-height:90vh;overflow-y:auto;
+}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--surface);z-index:1;
+}
+.modal-title{font-family:'Instrument Serif',serif;font-size:16px;color:var(--accent)}
+.modal-close{
+  background:none;border:none;color:var(--muted);font-size:18px;
+  cursor:pointer;padding:4px 8px;
+}
+.modal-body{padding:20px}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:10px 20px;font-size:12px;color:var(--text);z-index:999;
+  transition:transform 0.3s;white-space:nowrap;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:var(--accent2);color:var(--accent2)}
+.toast.error{border-color:var(--danger);color:var(--danger)}
+
+/* STATS BAR */
+.stats-bar{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;
+}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;
+}
+.stat-val{font-family:'Instrument Serif',serif;font-size:22px;color:var(--accent);margin-bottom:2px}
+.stat-lbl{font-size:10px;color:var(--muted);letter-spacing:0.06em}
+
+/* EXPORT SECTION */
+.export-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;
+}
+.export-info .export-title{font-size:13px;color:var(--text);margin-bottom:4px}
+.export-info .export-sub{font-size:11px;color:var(--muted)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .form-grid{grid-template-columns:1fr}
+  .form-full{grid-column:1}
+  .photo-row{grid-template-columns:1fr}
+  .stats-bar{grid-template-columns:1fr 1fr}
+  .header-actions .btn:not(.primary){display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">LENSFIT <span>ADMIN</span></div>
+  <div class="header-actions">
+    <button class="btn" onclick="exportData()">EXPORT</button>
+    <button class="btn" onclick="document.getElementById('importFile').click()">IMPORT</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
+    <a href="index.html" class="btn primary">VIEW STORE →</a>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('upload',this)">ADD FRAME</div>
+  <div class="tab" onclick="switchTab('inventory',this)">INVENTORY</div>
+  <div class="tab" onclick="switchTab('settings',this)">SETTINGS</div>
+</div>
+
+<!-- ══════════════ TAB: UPLOAD ══════════════ -->
+<div id="tab-upload" class="content">
+  <div class="form-card">
+    <div class="form-title">Upload New Frame</div>
+
+    <!-- PHOTOS -->
+    <div class="form-group form-full" style="margin-bottom:16px">
+      <div class="form-label">Frame Photos</div>
+      <div class="photo-row">
+        <div class="photo-zone" id="frontZone" onclick="triggerUpload('frontInput')">
+          <input type="file" id="frontInput" accept="image/*" onchange="handlePhoto('front',this)" onclick="event.stopPropagation()">
+          <div id="frontPreview">
+            <div style="font-size:28px;opacity:0.3">📷</div>
+            <div class="photo-label">FRONT SHOT</div>
+            <div class="photo-label" style="color:var(--accent2);margin-top:2px">REQUIRED</div>
+          </div>
+          <span class="photo-badge" style="display:none" id="frontBadge">✓ READY</span>
+        </div>
+        <div class="photo-zone" id="sideZone" onclick="triggerUpload('sideInput')">
+          <input type="file" id="sideInput" accept="image/*" onchange="handlePhoto('side',this)" onclick="event.stopPropagation()">
+          <div id="sidePreview">
+            <div style="font-size:28px;opacity:0.3">📷</div>
+            <div class="photo-label">SIDE SHOT</div>
+            <div class="photo-label" style="color:var(--muted);margin-top:2px">OPTIONAL</div>
+          </div>
+          <span class="photo-badge" style="display:none" id="sideBadge">✓ READY</span>
+        </div>
+      </div>
+      <div class="processing" id="processingIndicator">
+        <div class="spin"></div>
+        Processing image — removing background &amp; trimming...
+      </div>
+    </div>
+
+    <!-- BASIC INFO -->
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Frame Name *</label>
+        <input class="form-input" id="fName" placeholder="e.g. Classic Aviator">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gender *</label>
+        <select class="form-input form-select" id="fGender">
+          <option value="">Select gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="unisex">Unisex</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Frame Type *</label>
+        <select class="form-input form-select" id="fType">
+          <option value="">Select type</option>
+          <option value="full-rim">Full Rim</option>
+          <option value="half-rim">Half Rim</option>
+          <option value="rimless">Rimless</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Frame Shape *</label>
+        <select class="form-input form-select" id="fShape">
+          <option value="">Select shape</option>
+          <option value="aviator">Aviator</option>
+          <option value="wayfarer">Wayfarer</option>
+          <option value="round">Round</option>
+          <option value="rectangle">Rectangle</option>
+          <option value="square">Square</option>
+          <option value="cat-eye">Cat Eye</option>
+          <option value="geometric">Geometric</option>
+          <option value="oval">Oval</option>
+          <option value="browline">Browline</option>
+          <option value="sport">Sport</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Size</label>
+        <select class="form-input form-select" id="fSize">
+          <option value="">Select size</option>
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Material</label>
+        <select class="form-input form-select" id="fMaterial">
+          <option value="">Select material</option>
+          <option value="acetate">Acetate</option>
+          <option value="metal">Metal</option>
+          <option value="titanium">Titanium</option>
+          <option value="mixed">Mixed</option>
+          <option value="plastic">Plastic</option>
+          <option value="wood">Wood</option>
+        </select>
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">Color / Description</label>
+        <input class="form-input" id="fColor" placeholder="e.g. Matte Black, Transparent Grey">
+      </div>
+    </div>
+
+    <!-- OCCASIONS -->
+    <div class="form-group form-full" style="margin-top:16px">
+      <div class="form-label">Suitable Occasions</div>
+      <div class="check-grid" id="occasionGroup">
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="casual"><span class="check-dot"></span>Casual</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="formal"><span class="check-dot"></span>Formal</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="office"><span class="check-dot"></span>Office</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="sports"><span class="check-dot"></span>Sports</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="party"><span class="check-dot"></span>Party</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="outdoor"><span class="check-dot"></span>Outdoor</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="travel"><span class="check-dot"></span>Travel</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="evening"><span class="check-dot"></span>Evening</label>
+      </div>
+    </div>
+
+    <!-- FACE SHAPES -->
+    <div class="form-group form-full" style="margin-top:16px">
+      <div class="form-label">Best For Face Shapes</div>
+      <div class="check-grid" id="faceShapeGroup">
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="oval"><span class="check-dot"></span>Oval</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="round"><span class="check-dot"></span>Round</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="square"><span class="check-dot"></span>Square</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="oblong"><span class="check-dot"></span>Oblong</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="heart"><span class="check-dot"></span>Heart</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="diamond"><span class="check-dot"></span>Diamond</label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" value="triangle"><span class="check-dot"></span>Triangle</label>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;display:flex;gap:10px">
+      <button class="btn primary" onclick="saveFrame()" style="flex:1;padding:12px">SAVE FRAME</button>
+      <button class="btn" onclick="clearForm()">CLEAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: INVENTORY ══════════════ -->
+<div id="tab-inventory" class="content" style="display:none">
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-lbl">TOTAL FRAMES</div></div>
+    <div class="stat-card"><div class="stat-val" id="statMale">0</div><div class="stat-lbl">MALE</div></div>
+    <div class="stat-card"><div class="stat-val" id="statFemale">0</div><div class="stat-lbl">FEMALE</div></div>
+    <div class="stat-card"><div class="stat-val" id="statUnisex">0</div><div class="stat-lbl">UNISEX</div></div>
+  </div>
+  <div class="export-card">
+    <div class="export-info">
+      <div class="export-title">Backup Your Data</div>
+      <div class="export-sub">Export all frames as JSON. Import back anytime to restore.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="exportData()">EXPORT JSON</button>
+      <button class="btn danger" onclick="clearAllFrames()">CLEAR ALL</button>
+    </div>
+  </div>
+  <div class="inventory-header">
+    <div class="inventory-count" id="inventoryCount">Loading...</div>
+    <input class="search-bar" placeholder="Search frames..." oninput="filterInventory(this.value)" id="searchBar">
+  </div>
+  <div class="frame-grid" id="frameGrid">
+    <div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">👓</div>
+      <div class="empty-text">No frames yet.<br>Add your first frame in the Upload tab.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: SETTINGS ══════════════ -->
+<div id="tab-settings" class="content" style="display:none">
+  <div class="form-card">
+    <div class="form-title">Storage Info</div>
+    <div id="storageInfo" style="font-size:12px;color:var(--muted);line-height:2"></div>
+  </div>
+  <div class="form-card">
+    <div class="form-title">Image Processing</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Max Image Width (px)</label>
+      <input class="form-input" id="maxWidth" type="number" value="800" min="400" max="1600">
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">JPEG Quality (0.1 – 1.0)</label>
+      <input class="form-input" id="jpegQuality" type="number" value="0.85" step="0.05" min="0.1" max="1.0">
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Background Removal Threshold</label>
+      <input class="form-input" id="bgThreshold" type="number" value="240" min="200" max="255">
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">Higher = more aggressive white removal. Default 240 is good for clean white backgrounds.</div>
+    </div>
+    <button class="btn primary" onclick="saveSettings()">SAVE SETTINGS</button>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Frame</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="editModalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<canvas id="processingCanvas" style="display:none"></canvas>
+
+<script>
+// ═══════════════════════════════════════════
+//  INDEXEDDB SETUP
+// ═══════════════════════════════════════════
+const DB_NAME = 'LensfitDB', DB_VERSION = 1, STORE = 'frames';
+let db;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        const store = d.createObjectStore(STORE, { keyPath: 'id' });
+        store.createIndex('gender', 'gender', { unique: false });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGetAll() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(record) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).put(record);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbClear() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ═══════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════
+function getSettings() {
+  return {
+    maxWidth: parseInt(localStorage.getItem('lf_maxWidth') || '800'),
+    quality: parseFloat(localStorage.getItem('lf_quality') || '0.85'),
+    bgThreshold: parseInt(localStorage.getItem('lf_bgThreshold') || '240'),
+  };
+}
+
+function saveSettings() {
+  localStorage.setItem('lf_maxWidth', document.getElementById('maxWidth').value);
+  localStorage.setItem('lf_quality', document.getElementById('jpegQuality').value);
+  localStorage.setItem('lf_bgThreshold', document.getElementById('bgThreshold').value);
+  showToast('Settings saved', 'success');
+}
+
+function loadSettingsUI() {
+  const s = getSettings();
+  document.getElementById('maxWidth').value = s.maxWidth;
+  document.getElementById('jpegQuality').value = s.quality;
+  document.getElementById('bgThreshold').value = s.bgThreshold;
+}
+
+// ═══════════════════════════════════════════
+//  IMAGE PROCESSING
+// ═══════════════════════════════════════════
+let photoData = { front: null, side: null };
+
+function triggerUpload(inputId) {
+  document.getElementById(inputId).click();
+}
+
+async function handlePhoto(type, input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const indicator = document.getElementById('processingIndicator');
+  indicator.classList.add('show');
+
+  try {
+    const processed = await processImage(file, type === 'front');
+    photoData[type] = processed;
+
+    const zoneId = type === 'front' ? 'frontZone' : 'sideZone';
+    const previewId = type === 'front' ? 'frontPreview' : 'sidePreview';
+    const badgeId = type === 'front' ? 'frontBadge' : 'sideBadge';
+
+    const zone = document.getElementById(zoneId);
+    const preview = document.getElementById(previewId);
+    const badge = document.getElementById(badgeId);
+
+    preview.innerHTML = `<img src="${processed}" alt="Frame preview">
+      <button class="photo-remove" onclick="removePhoto('${type}',event)">✕</button>`;
+    zone.classList.add('has-image');
+    badge.style.display = 'block';
+    showToast(`${type === 'front' ? 'Front' : 'Side'} photo processed`, 'success');
+  } catch (e) {
+    showToast('Image processing failed: ' + e.message, 'error');
+  } finally {
+    indicator.classList.remove('show');
+    input.value = '';
+  }
+}
+
+function processImage(file, removeBg) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const settings = getSettings();
+          const canvas = document.getElementById('processingCanvas');
+
+          // Step 1: Resize
+          let w = img.width, h = img.height;
+          if (w > settings.maxWidth) {
+            h = Math.round(h * settings.maxWidth / w);
+            w = settings.maxWidth;
+          }
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          if (removeBg) {
+            // Step 2: Remove white/near-white background
+            removeBackground(ctx, w, h, settings.bgThreshold);
+            // Step 3: Auto-trim transparent border
+            const trimmed = autoTrim(canvas, ctx, w, h);
+            resolve(trimmed);
+          } else {
+            resolve(canvas.toDataURL('image/png'));
+          }
+        } catch (err) { reject(err); }
+      };
+      img.onerror = () => reject(new Error('Invalid image'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('File read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeBackground(ctx, w, h, threshold) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+
+  // Sample background color from corners (average of 4 corners)
+  function getPixel(x, y) {
+    const i = (y * w + x) * 4;
+    return [data[i], data[i+1], data[i+2], data[i+3]];
+  }
+
+  // Flood fill from all 4 corners to remove background
+  // Using a queue-based flood fill for accuracy
+  const visited = new Uint8Array(w * h);
+  const queue = [];
+
+  // Seed corners and edges
+  for (let x = 0; x < w; x++) { queue.push(x, 0); queue.push(x, h-1); }
+  for (let y = 1; y < h-1; y++) { queue.push(0, y); queue.push(w-1, y); }
+
+  while (queue.length > 0) {
+    const y = queue.pop();
+    const x = queue.pop();
+    const idx = y * w + x;
+    if (visited[idx]) continue;
+    visited[idx] = 1;
+    const pi = idx * 4;
+    const r = data[pi], g = data[pi+1], b = data[pi+2], a = data[pi+3];
+    // Is this pixel background? (near-white or already transparent)
+    if (a < 10 || (r >= threshold && g >= threshold && b >= threshold)) {
+      data[pi+3] = 0; // make transparent
+      // Add neighbors
+      if (x > 0)   { queue.push(x-1, y); }
+      if (x < w-1) { queue.push(x+1, y); }
+      if (y > 0)   { queue.push(x, y-1); }
+      if (y < h-1) { queue.push(x, y+1); }
+    }
+  }
+
+  // Light anti-aliasing pass on edges
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] > 0 && data[i] < 255) {
+      // Semi-transparent edge pixels — keep but don't over-remove
+      const gray = (data[i-3] + data[i-2] + data[i-1]) / 3;
+      if (gray > threshold - 20) data[i] = Math.round(data[i] * (1 - (gray - (threshold-20)) / 40));
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function autoTrim(canvas, ctx, w, h) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+
+  let minX = w, maxX = 0, minY = h, maxY = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = data[(y * w + x) * 4 + 3];
+      if (a > 20) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  // Add small padding (2% of dimension)
+  const padX = Math.round(w * 0.02), padY = Math.round(h * 0.02);
+  minX = Math.max(0, minX - padX); maxX = Math.min(w-1, maxX + padX);
+  minY = Math.max(0, minY - padY); maxY = Math.min(h-1, maxY + padY);
+
+  if (maxX <= minX || maxY <= minY) {
+    // Trim failed, return original
+    return canvas.toDataURL('image/png');
+  }
+
+  const tw = maxX - minX, th = maxY - minY;
+  const trimCanvas = document.createElement('canvas');
+  trimCanvas.width = tw; trimCanvas.height = th;
+  const tctx = trimCanvas.getContext('2d');
+  tctx.drawImage(canvas, minX, minY, tw, th, 0, 0, tw, th);
+  return trimCanvas.toDataURL('image/png');
+}
+
+function removePhoto(type, e) {
+  e.stopPropagation();
+  photoData[type] = null;
+  const previewId = type === 'front' ? 'frontPreview' : 'sidePreview';
+  const zoneId = type === 'front' ? 'frontZone' : 'sideZone';
+  const badgeId = type === 'front' ? 'frontBadge' : 'sideBadge';
+  const icon = type === 'front' ? 'REQUIRED' : 'OPTIONAL';
+  const iconColor = type === 'front' ? 'var(--accent2)' : 'var(--muted)';
+  document.getElementById(previewId).innerHTML = `
+    <div style="font-size:28px;opacity:0.3">📷</div>
+    <div class="photo-label">${type.toUpperCase()} SHOT</div>
+    <div class="photo-label" style="color:${iconColor};margin-top:2px">${icon}</div>`;
+  document.getElementById(zoneId).classList.remove('has-image');
+  document.getElementById(badgeId).style.display = 'none';
+}
+
+// ═══════════════════════════════════════════
+//  FORM HELPERS
+// ═══════════════════════════════════════════
+function toggleCheck(label) {
+  label.classList.toggle('checked');
+  label.querySelector('input').checked = label.classList.contains('checked');
+}
+
+function getChecked(groupId) {
+  return Array.from(document.querySelectorAll(`#${groupId} input:checked`)).map(i => i.value);
+}
+
+function setChecked(groupId, values) {
+  document.querySelectorAll(`#${groupId} .check-item`).forEach(item => {
+    const val = item.querySelector('input').value;
+    const checked = values.includes(val);
+    item.classList.toggle('checked', checked);
+    item.querySelector('input').checked = checked;
+  });
+}
+
+function clearForm() {
+  ['fName','fColor'].forEach(id => document.getElementById(id).value = '');
+  ['fGender','fType','fShape','fSize','fMaterial'].forEach(id => document.getElementById(id).value = '');
+  document.querySelectorAll('.check-item.checked').forEach(i => i.classList.remove('checked'));
+  document.querySelectorAll('.check-item input').forEach(i => i.checked = false);
+  removePhoto('front', { stopPropagation: ()=>{} });
+  removePhoto('side', { stopPropagation: ()=>{} });
+  photoData = { front: null, side: null };
+}
+
+// ═══════════════════════════════════════════
+//  SAVE / EDIT FRAME
+// ═══════════════════════════════════════════
+async function saveFrame(editId) {
+  const name = document.getElementById('fName').value.trim();
+  const gender = document.getElementById('fGender').value;
+  const type = document.getElementById('fType').value;
+  const shape = document.getElementById('fShape').value;
+
+  if (!name) { showToast('Frame name is required', 'error'); return; }
+  if (!gender) { showToast('Please select gender', 'error'); return; }
+  if (!type) { showToast('Please select frame type', 'error'); return; }
+  if (!shape) { showToast('Please select frame shape', 'error'); return; }
+  if (!photoData.front && !editId) { showToast('Front photo is required', 'error'); return; }
+
+  const frame = {
+    id: editId || ('frame_' + Date.now()),
+    name,
+    gender,
+    type,
+    shape,
+    size: document.getElementById('fSize').value,
+    material: document.getElementById('fMaterial').value,
+    color: document.getElementById('fColor').value.trim(),
+    occasions: getChecked('occasionGroup'),
+    faceShapes: getChecked('faceShapeGroup'),
+    frontImage: photoData.front || (editId ? await getExistingImage(editId, 'front') : null),
+    sideImage: photoData.side || (editId ? await getExistingImage(editId, 'side') : null),
+    createdAt: editId ? undefined : Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  // If editing, preserve original createdAt
+  if (editId) {
+    const all = await dbGetAll();
+    const existing = all.find(f => f.id === editId);
+    if (existing) frame.createdAt = existing.createdAt;
+  }
+
+  try {
+    await dbPut(frame);
+    showToast(editId ? 'Frame updated!' : 'Frame saved!', 'success');
+    if (!editId) clearForm();
+    if (editId) closeModal();
+    loadInventory();
+  } catch (e) {
+    showToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function getExistingImage(id, type) {
+  const all = await dbGetAll();
+  const frame = all.find(f => f.id === id);
+  return frame ? (type === 'front' ? frame.frontImage : frame.sideImage) : null;
+}
+
+// ═══════════════════════════════════════════
+//  INVENTORY
+// ═══════════════════════════════════════════
+let allFrames = [];
+
+async function loadInventory() {
+  allFrames = await dbGetAll();
+  allFrames.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  renderInventory(allFrames);
+  updateStats(allFrames);
+}
+
+function updateStats(frames) {
+  document.getElementById('statTotal').textContent = frames.length;
+  document.getElementById('statMale').textContent = frames.filter(f => f.gender === 'male').length;
+  document.getElementById('statFemale').textContent = frames.filter(f => f.gender === 'female').length;
+  document.getElementById('statUnisex').textContent = frames.filter(f => f.gender === 'unisex').length;
+}
+
+function filterInventory(query) {
+  const q = query.toLowerCase();
+  const filtered = allFrames.filter(f =>
+    f.name.toLowerCase().includes(q) ||
+    (f.shape || '').includes(q) ||
+    (f.color || '').toLowerCase().includes(q) ||
+    (f.gender || '').includes(q)
+  );
+  renderInventory(filtered);
+}
+
+function renderInventory(frames) {
+  const grid = document.getElementById('frameGrid');
+  document.getElementById('inventoryCount').textContent = `${frames.length} frame${frames.length !== 1 ? 's' : ''}`;
+
+  if (frames.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">👓</div>
+      <div class="empty-text">No frames found.</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = frames.map(f => `
+    <div class="frame-card">
+      <div class="frame-img-wrap">
+        ${f.frontImage ? `<img src="${f.frontImage}" alt="${f.name}" loading="lazy">` : '<div style="color:var(--muted);font-size:11px">No image</div>'}
+      </div>
+      <div class="frame-card-body">
+        <div class="frame-card-name" title="${f.name}">${f.name}</div>
+        <div class="frame-card-meta">
+          <span class="meta-tag">${f.gender || '—'}</span>
+          <span class="meta-tag">${f.shape || '—'}</span>
+          ${f.size ? `<span class="meta-tag">${f.size}</span>` : ''}
+        </div>
+        <div class="frame-card-actions">
+          <button class="card-btn" onclick="openEditModal('${f.id}')">EDIT</button>
+          <button class="card-btn del" onclick="deleteFrame('${f.id}')">DELETE</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteFrame(id) {
+  if (!confirm('Delete this frame? This cannot be undone.')) return;
+  await dbDelete(id);
+  showToast('Frame deleted', 'success');
+  loadInventory();
+}
+
+async function clearAllFrames() {
+  if (!confirm('Delete ALL frames? This cannot be undone.')) return;
+  await dbClear();
+  showToast('All frames cleared', 'success');
+  loadInventory();
+}
+
+// ═══════════════════════════════════════════
+//  EDIT MODAL
+// ═══════════════════════════════════════════
+async function openEditModal(id) {
+  const all = await dbGetAll();
+  const frame = all.find(f => f.id === id);
+  if (!frame) return;
+
+  // Populate form fields in modal
+  const body = document.getElementById('editModalBody');
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Frame Name</label>
+        <input class="form-input" id="efName" value="${frame.name}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gender</label>
+        <select class="form-input form-select" id="efGender">
+          <option value="male" ${frame.gender==='male'?'selected':''}>Male</option>
+          <option value="female" ${frame.gender==='female'?'selected':''}>Female</option>
+          <option value="unisex" ${frame.gender==='unisex'?'selected':''}>Unisex</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Frame Type</label>
+        <select class="form-input form-select" id="efType">
+          ${['full-rim','half-rim','rimless'].map(v=>`<option value="${v}" ${frame.type===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Frame Shape</label>
+        <select class="form-input form-select" id="efShape">
+          ${['aviator','wayfarer','round','rectangle','square','cat-eye','geometric','oval','browline','sport'].map(v=>`<option value="${v}" ${frame.shape===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Size</label>
+        <select class="form-input form-select" id="efSize">
+          <option value="">—</option>
+          ${['small','medium','large'].map(v=>`<option value="${v}" ${frame.size===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Material</label>
+        <select class="form-input form-select" id="efMaterial">
+          <option value="">—</option>
+          ${['acetate','metal','titanium','mixed','plastic','wood'].map(v=>`<option value="${v}" ${frame.material===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">Color</label>
+        <input class="form-input" id="efColor" value="${frame.color || ''}">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:14px">
+      <div class="form-label">Occasions</div>
+      <div class="check-grid" id="eOccasionGroup">
+        ${['casual','formal','office','sports','party','outdoor','travel','evening'].map(v=>`
+          <label class="check-item ${(frame.occasions||[]).includes(v)?'checked':''}" onclick="toggleCheck(this)">
+            <input type="checkbox" value="${v}" ${(frame.occasions||[]).includes(v)?'checked':''}><span class="check-dot"></span>${v}
+          </label>`).join('')}
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:14px">
+      <div class="form-label">Best For Face Shapes</div>
+      <div class="check-grid" id="eFaceShapeGroup">
+        ${['oval','round','square','oblong','heart','diamond','triangle'].map(v=>`
+          <label class="check-item ${(frame.faceShapes||[]).includes(v)?'checked':''}" onclick="toggleCheck(this)">
+            <input type="checkbox" value="${v}" ${(frame.faceShapes||[]).includes(v)?'checked':''}><span class="check-dot"></span>${v}
+          </label>`).join('')}
+      </div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px">
+      <button class="btn primary" onclick="saveEditedFrame('${id}')" style="flex:1;padding:12px">SAVE CHANGES</button>
+      <button class="btn" onclick="closeModal()">CANCEL</button>
+    </div>
+  `;
+  document.getElementById('editModal').classList.add('show');
+}
+
+async function saveEditedFrame(id) {
+  const all = await dbGetAll();
+  const frame = all.find(f => f.id === id);
+  if (!frame) return;
+
+  frame.name = document.getElementById('efName').value.trim();
+  frame.gender = document.getElementById('efGender').value;
+  frame.type = document.getElementById('efType').value;
+  frame.shape = document.getElementById('efShape').value;
+  frame.size = document.getElementById('efSize').value;
+  frame.material = document.getElementById('efMaterial').value;
+  frame.color = document.getElementById('efColor').value.trim();
+  frame.occasions = getChecked('eOccasionGroup');
+  frame.faceShapes = getChecked('eFaceShapeGroup');
+  frame.updatedAt = Date.now();
+
+  await dbPut(frame);
+  showToast('Frame updated!', 'success');
+  closeModal();
+  loadInventory();
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════
+//  EXPORT / IMPORT
+// ═══════════════════════════════════════════
+async function exportData() {
+  const frames = await dbGetAll();
+  if (frames.length === 0) { showToast('No frames to export', 'error'); return; }
+  const json = JSON.stringify({ version: 1, exportedAt: Date.now(), frames }, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lensfit-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${frames.length} frames`, 'success');
+}
+
+async function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.frames || !Array.isArray(data.frames)) throw new Error('Invalid format');
+    if (!confirm(`Import ${data.frames.length} frames? Existing frames with same ID will be overwritten.`)) return;
+    for (const frame of data.frames) { await dbPut(frame); }
+    showToast(`Imported ${data.frames.length} frames`, 'success');
+    loadInventory();
+  } catch (e) {
+    showToast('Import failed: ' + e.message, 'error');
+  }
+  input.value = '';
+}
+
+// ═══════════════════════════════════════════
+//  STORAGE INFO
+// ═══════════════════════════════════════════
+async function loadStorageInfo() {
+  const frames = await dbGetAll();
+  let totalSize = 0;
+  frames.forEach(f => {
+    if (f.frontImage) totalSize += f.frontImage.length;
+    if (f.sideImage) totalSize += f.sideImage.length;
+  });
+  const sizeMB = (totalSize / 1024 / 1024).toFixed(2);
+  document.getElementById('storageInfo').innerHTML = `
+    Frames stored: <strong style="color:var(--text)">${frames.length}</strong><br>
+    Estimated data size: <strong style="color:var(--text)">${sizeMB} MB</strong><br>
+    Storage type: <strong style="color:var(--text)">IndexedDB (local device)</strong><br>
+    Limit: <strong style="color:var(--text)">~250MB+ depending on browser</strong><br>
+    <span style="color:var(--accent2)">Note: Data is stored only on this device.</span>
+  `;
+}
+
+// ═══════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = 'block';
+  if (name === 'inventory') loadInventory();
+  if (name === 'settings') { loadSettingsUI(); loadStorageInfo(); }
+}
+
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Close modal on overlay click
+document.getElementById('editModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+openDB().then(() => {
+  loadInventory();
+  loadSettingsUI();
+}).catch(e => {
+  showToast('Database error: ' + e.message, 'error');
+});
+</script>
+</body>
+</html>

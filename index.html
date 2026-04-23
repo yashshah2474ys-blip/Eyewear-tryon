@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LENSFIT — Try On</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0b;--surface:rgba(18,18,20,0.95);--panel:rgba(24,24,28,0.9);
+  --border:rgba(255,255,255,0.1);--accent:#e8d5b0;--accent2:#7eb8a4;
+  --danger:#d4756a;--text:#f0ede8;--muted:#7a7a8a;--radius:16px;
+}
+html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;touch-action:manipulation}
+
+/* ── SCREENS ── */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;z-index:10}
+.screen.active{display:flex}
+
+/* ══════════════════════════════════
+   SCREEN 1 — GENDER SELECTION
+══════════════════════════════════ */
+#screenGender{
+  background:var(--bg);align-items:center;justify-content:center;
+  background-image:radial-gradient(ellipse at 30% 20%, rgba(126,184,164,0.08) 0%, transparent 60%),
+                   radial-gradient(ellipse at 70% 80%, rgba(232,213,176,0.06) 0%, transparent 60%);
+}
+.gender-wrap{width:100%;max-width:360px;padding:32px 24px;text-align:center}
+.brand-logo{font-family:'Instrument Serif',serif;font-size:36px;color:var(--accent);letter-spacing:0.04em;margin-bottom:6px}
+.brand-sub{font-size:10px;color:var(--muted);letter-spacing:0.2em;margin-bottom:48px}
+.gender-title{font-family:'Instrument Serif',serif;font-size:18px;color:var(--text);margin-bottom:8px}
+.gender-desc{font-size:11px;color:var(--muted);line-height:1.8;margin-bottom:32px}
+.gender-options{display:flex;flex-direction:column;gap:12px}
+.gender-btn{
+  padding:18px 24px;border-radius:var(--radius);border:1px solid var(--border);
+  background:rgba(255,255,255,0.03);color:var(--text);font-family:'DM Mono',monospace;
+  font-size:13px;cursor:pointer;transition:all 0.3s;letter-spacing:0.08em;
+  display:flex;align-items:center;gap:14px;text-align:left;
+}
+.gender-btn:hover,.gender-btn:active{border-color:var(--accent);background:rgba(232,213,176,0.06);transform:translateX(4px)}
+.gender-icon{font-size:22px;width:36px;text-align:center}
+.gender-btn-text{flex:1}
+.gender-btn-label{font-size:12px;color:var(--text)}
+.gender-btn-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.gender-arrow{color:var(--muted);font-size:14px}
+
+/* ══════════════════════════════════
+   SCREEN 2 — FACE ANALYSIS
+══════════════════════════════════ */
+#screenAnalysis{background:#000;position:relative}
+#analysisVideo{display:none}
+#analysisCanvas{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.analysis-overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:space-between;padding:48px 24px 32px;
+  pointer-events:none;
+}
+.analysis-top{text-align:center}
+.analysis-title{
+  font-family:'Instrument Serif',serif;font-size:20px;color:var(--text);
+  margin-bottom:6px;text-shadow:0 2px 12px rgba(0,0,0,0.8);
+}
+.analysis-sub{font-size:11px;color:rgba(255,255,255,0.6);letter-spacing:0.08em;text-shadow:0 1px 6px rgba(0,0,0,0.9)}
+.face-guide{
+  width:180px;height:240px;border-radius:50% 50% 50% 50% / 40% 40% 60% 60%;
+  border:2px solid rgba(126,184,164,0.5);
+  box-shadow:0 0 0 9999px rgba(0,0,0,0.35);
+  transition:border-color 0.4s;
+}
+.face-guide.locked{border-color:var(--accent2);box-shadow:0 0 0 9999px rgba(0,0,0,0.2),0 0 30px rgba(126,184,164,0.3)}
+.analysis-status{
+  background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);
+  border:1px solid var(--border);border-radius:12px;
+  padding:12px 20px;text-align:center;pointer-events:auto;
+}
+.analysis-status-text{font-size:12px;color:var(--text);letter-spacing:0.06em}
+.progress-bar-wrap{width:180px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;margin:8px auto 0}
+.progress-bar{height:100%;background:var(--accent2);border-radius:2px;width:0%;transition:width 0.2s}
+.analysis-back{
+  position:absolute;top:16px;left:16px;
+  background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:10px;
+  padding:8px 14px;font-size:11px;color:var(--muted);cursor:pointer;
+  backdrop-filter:blur(8px);
+}
+
+/* ══════════════════════════════════
+   SCREEN 3 — RESULTS / SUGGESTIONS
+══════════════════════════════════ */
+#screenResults{background:var(--bg);overflow-y:auto}
+.results-header{
+  padding:24px 20px 0;
+  background:linear-gradient(to bottom, var(--bg), transparent);
+  position:sticky;top:0;z-index:2;
+}
+.results-back{
+  display:inline-flex;align-items:center;gap:6px;
+  color:var(--muted);font-size:11px;cursor:pointer;margin-bottom:16px;
+}
+.face-result-card{
+  margin:0 20px 24px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;display:flex;align-items:center;gap:16px;
+  backdrop-filter:blur(12px);
+}
+.face-shape-icon{
+  width:64px;height:64px;border-radius:50%;
+  background:rgba(126,184,164,0.1);border:1px solid rgba(126,184,164,0.3);
+  display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;
+}
+.face-result-text .face-shape-name{
+  font-family:'Instrument Serif',serif;font-size:20px;color:var(--accent);margin-bottom:4px;
+}
+.face-result-text .face-shape-desc{font-size:11px;color:var(--muted);line-height:1.7}
+.section-title{
+  padding:0 20px;margin-bottom:14px;
+  font-family:'Instrument Serif',serif;font-size:16px;color:var(--text);
+}
+.section-sub{font-size:10px;color:var(--muted);margin-left:8px;font-family:'DM Mono',monospace}
+.suggestion-list{padding:0 20px;display:flex;flex-direction:column;gap:12px;margin-bottom:28px}
+.suggestion-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px;display:flex;align-items:center;gap:14px;cursor:pointer;
+  transition:all 0.2s;backdrop-filter:blur(10px);
+}
+.suggestion-card:hover,.suggestion-card:active{border-color:var(--accent);transform:translateX(3px)}
+.suggestion-img{
+  width:90px;height:60px;object-fit:contain;flex-shrink:0;
+  background:rgba(255,255,255,0.03);border-radius:8px;padding:4px;
+}
+.suggestion-img-placeholder{
+  width:90px;height:60px;flex-shrink:0;background:rgba(255,255,255,0.03);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;opacity:0.4;
+}
+.suggestion-info{flex:1;min-width:0}
+.suggestion-name{font-size:13px;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.suggestion-reason{font-size:10px;color:var(--muted);line-height:1.6}
+.suggestion-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.stag{
+  font-size:9px;padding:2px 8px;border-radius:10px;
+  background:rgba(126,184,164,0.1);border:1px solid rgba(126,184,184,0.2);color:var(--accent2);
+  letter-spacing:0.04em;
+}
+.score-badge{
+  flex-shrink:0;width:40px;height:40px;border-radius:50%;
+  background:rgba(126,184,164,0.12);border:1px solid rgba(126,184,164,0.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--accent2);font-weight:500;
+}
+.browse-all-btn{
+  margin:0 20px 32px;padding:16px;border-radius:var(--radius);
+  border:1px solid var(--border);background:transparent;color:var(--muted);
+  font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;
+  transition:all 0.2s;width:calc(100% - 40px);letter-spacing:0.06em;
+}
+.browse-all-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ══════════════════════════════════
+   SCREEN 4 — FRAME DETAIL
+══════════════════════════════════ */
+#screenDetail{background:var(--bg);overflow-y:auto}
+.detail-back{
+  position:absolute;top:16px;left:16px;z-index:5;
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:10px;
+  padding:8px 14px;font-size:11px;color:var(--text);cursor:pointer;
+}
+.detail-hero{
+  width:100%;height:280px;background:rgba(255,255,255,0.02);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.detail-hero img{max-width:85%;max-height:240px;object-fit:contain}
+.detail-hero-side{
+  position:absolute;bottom:12px;right:12px;width:70px;height:50px;
+  background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;
+  backdrop-filter:blur(6px);
+}
+.detail-hero-side img{max-width:90%;max-height:45px;object-fit:contain}
+.detail-body{padding:20px}
+.detail-name{font-family:'Instrument Serif',serif;font-size:24px;color:var(--accent);margin-bottom:6px}
+.detail-meta-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
+.dmeta{
+  padding:4px 12px;border-radius:20px;background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);font-size:10px;color:var(--muted);letter-spacing:0.04em;
+}
+.detail-section{margin-bottom:18px}
+.detail-section-label{font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px}
+.detail-tags{display:flex;flex-wrap:wrap;gap:6px}
+.detail-tag{
+  padding:5px 12px;border-radius:10px;
+  background:rgba(126,184,164,0.08);border:1px solid rgba(126,184,164,0.2);
+  font-size:10px;color:var(--accent2);
+}
+.tryon-btn{
+  width:100%;padding:18px;border-radius:var(--radius);
+  background:var(--accent);color:#0a0a0b;
+  font-family:'DM Mono',monospace;font-size:13px;font-weight:500;
+  border:none;cursor:pointer;letter-spacing:0.08em;
+  transition:all 0.2s;margin-top:8px;
+}
+.tryon-btn:hover,.tryon-btn:active{background:#f5e8ca;transform:scale(0.99)}
+
+/* ══════════════════════════════════
+   SCREEN 5 — AR TRY-ON
+══════════════════════════════════ */
+#screenTryon{background:#000;position:relative}
+#tryonVideo{display:none}
+#tryonCanvas{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+
+/* FRAME STRIP */
+.frame-strip-wrap{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+  padding:12px 0 24px;
+}
+.frame-strip{
+  display:flex;gap:10px;overflow-x:auto;padding:6px 16px;
+  scrollbar-width:none;-ms-overflow-style:none;
+}
+.frame-strip::-webkit-scrollbar{display:none}
+.strip-item{
+  flex-shrink:0;width:80px;cursor:pointer;
+  transition:transform 0.2s;
+}
+.strip-item:active{transform:scale(0.95)}
+.strip-img{
+  width:80px;height:52px;border-radius:10px;border:2px solid transparent;
+  background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;
+  overflow:hidden;transition:all 0.2s;
+}
+.strip-img img{max-width:90%;max-height:46px;object-fit:contain}
+.strip-item.active .strip-img{border-color:var(--accent);background:rgba(232,213,176,0.08)}
+.strip-item-name{font-size:9px;color:var(--muted);text-align:center;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strip-item.active .strip-item-name{color:var(--accent)}
+.strip-suggested-dot{
+  width:5px;height:5px;border-radius:50%;background:var(--accent2);
+  margin:3px auto 0;
+}
+
+/* AR TOP BAR */
+.tryon-topbar{
+  position:absolute;top:0;left:0;right:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 16px 12px;
+  background:linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+}
+.tryon-back{
+  background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:10px;
+  padding:8px 14px;font-size:11px;color:var(--text);cursor:pointer;
+}
+.tryon-frame-name{
+  font-family:'Instrument Serif',serif;font-size:15px;color:var(--text);
+  text-shadow:0 1px 8px rgba(0,0,0,0.8);
+}
+.tryon-detail-btn{
+  background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:10px;
+  padding:8px 14px;font-size:11px;color:var(--muted);cursor:pointer;
+}
+
+/* CALIBRATION PANEL */
+.calib-toggle{
+  position:absolute;top:60px;right:16px;
+  background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:10px;
+  padding:8px 12px;font-size:10px;color:var(--muted);cursor:pointer;
+  letter-spacing:0.06em;
+}
+.calib-panel{
+  position:absolute;top:60px;right:16px;
+  background:rgba(14,14,15,0.92);backdrop-filter:blur(14px);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;width:200px;display:none;
+}
+.calib-panel.show{display:block}
+.calib-title{font-size:10px;color:var(--muted);letter-spacing:0.1em;margin-bottom:12px}
+.calib-row{margin-bottom:10px}
+.calib-label-row{display:flex;justify-content:space-between;margin-bottom:4px}
+.calib-lbl{font-size:10px;color:var(--muted)}
+.calib-val{font-size:10px;color:var(--accent2)}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent2);cursor:pointer}
+.calib-reset{
+  width:100%;padding:7px;border-radius:7px;border:1px solid var(--border);
+  background:transparent;color:var(--danger);font-family:'DM Mono',monospace;
+  font-size:10px;cursor:pointer;margin-top:8px;letter-spacing:0.06em;
+}
+
+/* TRACKING STATUS */
+.tracking-status{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:20px;
+  padding:5px 14px;font-size:10px;color:var(--muted);
+  display:flex;align-items:center;gap:6px;transition:all 0.3s;
+}
+.track-dot{width:6px;height:6px;border-radius:50%;background:var(--danger);transition:background 0.3s}
+.track-dot.on{background:var(--accent2);box-shadow:0 0 6px var(--accent2)}
+
+/* LOADING SCREEN */
+.loading-overlay{
+  position:absolute;inset:0;background:#000;z-index:20;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+}
+.loading-overlay.hidden{display:none}
+.loading-ring{width:44px;height:44px;border:2px solid rgba(255,255,255,0.1);border-top-color:var(--accent2);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:11px;color:var(--muted);letter-spacing:0.15em}
+
+/* PERM ERROR */
+.perm-screen{
+  position:absolute;inset:0;background:#000;z-index:25;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;text-align:center;padding:32px;
+}
+.perm-screen.show{display:flex}
+.perm-icon{font-size:40px;margin-bottom:8px}
+.perm-title{font-family:'Instrument Serif',serif;font-size:18px;color:var(--accent)}
+.perm-msg{font-size:11px;color:var(--muted);line-height:1.8;max-width:260px}
+.perm-btn{
+  margin-top:8px;padding:12px 28px;border-radius:10px;
+  border:1px solid var(--accent);background:rgba(232,213,176,0.08);
+  color:var(--accent);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;
+}
+
+/* BROWSE MODAL */
+.browse-modal{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);
+  display:none;flex-direction:column;
+}
+.browse-modal.show{display:flex}
+.browse-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  background:var(--surface);
+}
+.browse-title{font-family:'Instrument Serif',serif;font-size:16px;color:var(--accent)}
+.browse-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px}
+.browse-filters{
+  display:flex;gap:8px;padding:12px 16px;overflow-x:auto;
+  scrollbar-width:none;background:var(--surface);border-bottom:1px solid var(--border);
+}
+.browse-filters::-webkit-scrollbar{display:none}
+.filter-chip{
+  flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-family:'DM Mono',monospace;
+  font-size:10px;cursor:pointer;transition:all 0.2s;white-space:nowrap;letter-spacing:0.04em;
+}
+.filter-chip.active{background:rgba(126,184,164,0.1);border-color:var(--accent2);color:var(--accent2)}
+.browse-grid{
+  flex:1;overflow-y:auto;display:grid;
+  grid-template-columns:repeat(3,1fr);gap:10px;padding:14px;
+}
+.browse-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;cursor:pointer;transition:all 0.2s;
+}
+.browse-card:active{transform:scale(0.97)}
+.browse-card.selected{border-color:var(--accent)}
+.browse-card-img{
+  height:80px;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.03);padding:6px;
+}
+.browse-card-img img{max-width:100%;max-height:68px;object-fit:contain}
+.browse-card-name{font-size:10px;color:var(--muted);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* EMPTY STATE */
+.empty-inv{text-align:center;padding:48px 20px;color:var(--muted);font-size:12px;line-height:2}
+
+/* UTILITY */
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ══ SCREEN 1: GENDER ══ -->
+<div class="screen active" id="screenGender">
+  <div class="gender-wrap">
+    <div class="brand-logo">LENSFIT</div>
+    <div class="brand-sub">VIRTUAL TRY-ON</div>
+    <div class="gender-title">Who's trying on today?</div>
+    <div class="gender-desc">We'll personalise our suggestions to find frames that suit you perfectly.</div>
+    <div class="gender-options">
+      <button class="gender-btn" onclick="selectGender('male')">
+        <span class="gender-icon">👔</span>
+        <span class="gender-btn-text">
+          <span class="gender-btn-label">Male</span>
+          <span class="gender-btn-sub">Frames curated for men</span>
+        </span>
+        <span class="gender-arrow">›</span>
+      </button>
+      <button class="gender-btn" onclick="selectGender('female')">
+        <span class="gender-icon">👗</span>
+        <span class="gender-btn-text">
+          <span class="gender-btn-label">Female</span>
+          <span class="gender-btn-sub">Frames curated for women</span>
+        </span>
+        <span class="gender-arrow">›</span>
+      </button>
+      <button class="gender-btn" onclick="selectGender('unisex')">
+        <span class="gender-icon">✦</span>
+        <span class="gender-btn-text">
+          <span class="gender-btn-label">All Frames</span>
+          <span class="gender-btn-sub">Show me everything</span>
+        </span>
+        <span class="gender-arrow">›</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 2: FACE ANALYSIS ══ -->
+<div class="screen" id="screenAnalysis">
+  <video id="analysisVideo" autoplay playsinline muted></video>
+  <canvas id="analysisCanvas"></canvas>
+  <div class="analysis-overlay">
+    <div class="analysis-top">
+      <div class="analysis-title">Face Analysis</div>
+      <div class="analysis-sub" id="analysisSubText">POSITION YOUR FACE IN THE GUIDE</div>
+    </div>
+    <div class="face-guide" id="faceGuide"></div>
+    <div class="analysis-status">
+      <div class="analysis-status-text" id="analysisStatusText">Looking for your face...</div>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="analysisProgress"></div></div>
+    </div>
+  </div>
+  <div class="analysis-back" onclick="goToScreen('screenGender')">← Back</div>
+  <div class="loading-overlay" id="analysisLoading">
+    <div class="loading-ring"></div>
+    <div class="loading-text">LOADING FACE MESH</div>
+  </div>
+  <div class="perm-screen" id="analysisPerm">
+    <div class="perm-icon">📷</div>
+    <div class="perm-title">Camera Needed</div>
+    <div class="perm-msg">Please allow camera access so we can analyse your face shape and suggest the best frames.</div>
+    <button class="perm-btn" onclick="retryAnalysis()">ALLOW & RETRY</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 3: RESULTS ══ -->
+<div class="screen" id="screenResults">
+  <div class="results-header">
+    <div class="results-back" onclick="goToScreen('screenGender')">← Start Over</div>
+  </div>
+  <div class="face-result-card" id="faceResultCard">
+    <div class="face-shape-icon" id="faceShapeIcon">🔍</div>
+    <div class="face-result-text">
+      <div class="face-shape-name" id="faceShapeName">Analysing...</div>
+      <div class="face-shape-desc" id="faceShapeDesc"></div>
+    </div>
+  </div>
+  <div class="section-title">Best Picks For You <span class="section-sub" id="suggestCount"></span></div>
+  <div class="suggestion-list" id="suggestionList"></div>
+  <button class="browse-all-btn" onclick="openBrowseModal()">BROWSE ALL FRAMES →</button>
+</div>
+
+<!-- ══ SCREEN 4: DETAIL ══ -->
+<div class="screen" id="screenDetail" style="position:relative">
+  <button class="detail-back" id="detailBack" onclick="goBack()">← Back</button>
+  <div class="detail-hero" id="detailHero">
+    <img id="detailFrontImg" src="" alt="">
+    <div class="detail-hero-side" id="detailSideWrap" style="display:none">
+      <img id="detailSideImg" src="" alt="">
+    </div>
+  </div>
+  <div class="detail-body">
+    <div class="detail-name" id="detailName"></div>
+    <div class="detail-meta-row" id="detailMeta"></div>
+    <div class="detail-section" id="detailOccasionsSection">
+      <div class="detail-section-label">Occasions</div>
+      <div class="detail-tags" id="detailOccasions"></div>
+    </div>
+    <div class="detail-section" id="detailFaceSection">
+      <div class="detail-section-label">Suits Face Shapes</div>
+      <div class="detail-tags" id="detailFaceShapes"></div>
+    </div>
+    <div class="detail-section" id="detailReasonSection" style="display:none">
+      <div class="detail-section-label">Why This Suits You</div>
+      <div id="detailReason" style="font-size:12px;color:var(--muted);line-height:1.8;padding:12px;background:rgba(126,184,164,0.05);border:1px solid rgba(126,184,164,0.15);border-radius:10px"></div>
+    </div>
+    <button class="tryon-btn" id="detailTryonBtn" onclick="tryOnFromDetail()">TRY ON</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 5: AR TRY-ON ══ -->
+<div class="screen" id="screenTryon">
+  <video id="tryonVideo" autoplay playsinline muted></video>
+  <canvas id="tryonCanvas"></canvas>
+
+  <div class="tryon-topbar">
+    <button class="tryon-back" onclick="goBack()">← Back</button>
+    <div class="tryon-frame-name" id="tryonFrameName">—</div>
+    <button class="tryon-detail-btn" onclick="viewCurrentDetail()">INFO</button>
+  </div>
+
+  <div class="tracking-status" id="trackingStatus">
+    <div class="track-dot" id="trackDot"></div>
+    <span id="trackText">Searching...</span>
+  </div>
+
+  <button class="calib-toggle" id="calibToggle" onclick="toggleCalib()">⚙ ADJUST</button>
+  <div class="calib-panel" id="calibPanel">
+    <div class="calib-title">FRAME ALIGNMENT</div>
+    <div class="calib-row">
+      <div class="calib-label-row"><span class="calib-lbl">SCALE</span><span class="calib-val" id="cvScale">1.15</span></div>
+      <input type="range" id="csScale" min="0.5" max="2.5" step="0.01" value="1.15" oninput="updateCalib('scaleMultiplier',this.value,'cvScale',v=>v)">
+    </div>
+    <div class="calib-row">
+      <div class="calib-label-row"><span class="calib-lbl">Y OFFSET</span><span class="calib-val" id="cvY">-15</span></div>
+      <input type="range" id="csY" min="-80" max="80" step="1" value="-15" oninput="updateCalib('yOffset',this.value,'cvY',v=>parseFloat(v).toFixed(0))">
+    </div>
+    <div class="calib-row">
+      <div class="calib-label-row"><span class="calib-lbl">X OFFSET</span><span class="calib-val" id="cvX">0</span></div>
+      <input type="range" id="csX" min="-60" max="60" step="1" value="0" oninput="updateCalib('xOffset',this.value,'cvX',v=>parseFloat(v).toFixed(0))">
+    </div>
+    <div class="calib-row">
+      <div class="calib-label-row"><span class="calib-lbl">ROTATION</span><span class="calib-val" id="cvRot">0°</span></div>
+      <input type="range" id="csRot" min="-20" max="20" step="0.5" value="0" oninput="updateCalib('rotationOffset',this.value,'cvRot',v=>parseFloat(v).toFixed(1)+'°')">
+    </div>
+    <button class="calib-reset" onclick="resetCalib()">↺ RESET</button>
+  </div>
+
+  <div class="frame-strip-wrap">
+    <div class="frame-strip" id="frameStrip"></div>
+  </div>
+
+  <div class="loading-overlay" id="tryonLoading">
+    <div class="loading-ring"></div>
+    <div class="loading-text">STARTING CAMERA</div>
+  </div>
+  <div class="perm-screen" id="tryonPerm">
+    <div class="perm-icon">📷</div>
+    <div class="perm-title">Camera Needed</div>
+    <div class="perm-msg">Camera access is required for the AR try-on experience.</div>
+    <button class="perm-btn" onclick="retryTryon()">ALLOW & RETRY</button>
+  </div>
+</div>
+
+<!-- BROWSE MODAL -->
+<div class="browse-modal" id="browseModal">
+  <div class="browse-header">
+    <div class="browse-title">All Frames</div>
+    <button class="browse-close" onclick="closeBrowseModal()">✕</button>
+  </div>
+  <div class="browse-filters" id="browseFilters">
+    <button class="filter-chip active" onclick="setBrowseFilter('all',this)">ALL</button>
+    <button class="filter-chip" onclick="setBrowseFilter('male',this)">MALE</button>
+    <button class="filter-chip" onclick="setBrowseFilter('female',this)">FEMALE</button>
+    <button class="filter-chip" onclick="setBrowseFilter('unisex',this)">UNISEX</button>
+    <button class="filter-chip" onclick="setBrowseFilter('aviator',this)">AVIATOR</button>
+    <button class="filter-chip" onclick="setBrowseFilter('round',this)">ROUND</button>
+    <button class="filter-chip" onclick="setBrowseFilter('rectangle',this)">RECTANGLE</button>
+    <button class="filter-chip" onclick="setBrowseFilter('wayfarer',this)">WAYFARER</button>
+    <button class="filter-chip" onclick="setBrowseFilter('cat-eye',this)">CAT EYE</button>
+  </div>
+  <div class="browse-grid" id="browseGrid"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DATABASE — same IndexedDB as admin
+// ═══════════════════════════════════════════════════════
+const DB_NAME = 'LensfitDB', DB_VERSION = 1, STORE = 'frames';
+let db;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGetAll() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════════════════════
+let state = {
+  gender: null,
+  faceShape: null,
+  faceMetrics: null,
+  allFrames: [],
+  suggestions: [],
+  currentFrameIdx: 0,
+  stripFrames: [],
+  detailFrame: null,
+  detailFrom: null,
+  previousScreen: null,
+};
+
+// ═══════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════
+function goToScreen(id) {
+  state.previousScreen = document.querySelector('.screen.active')?.id || null;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goBack() {
+  if (state.previousScreen) goToScreen(state.previousScreen);
+}
+
+// ═══════════════════════════════════════════════════════
+//  SCREEN 1 — GENDER
+// ═══════════════════════════════════════════════════════
+function selectGender(gender) {
+  state.gender = gender;
+  startFaceAnalysis();
+}
+
+// ═══════════════════════════════════════════════════════
+//  SCREEN 2 — FACE ANALYSIS
+// ═══════════════════════════════════════════════════════
+let analysisFaceMesh, analysisCamera, analysisStream;
+let analysisLandmarks = null;
+let analysisFrameCount = 0;
+let analysisStarted = false;
+let analysisComplete = false;
+let analysisSampleBuffer = [];
+const ANALYSIS_SAMPLES = 45; // ~1.5 seconds of stable frames
+
+async function startFaceAnalysis() {
+  goToScreen('screenAnalysis');
+  if (analysisStarted) return;
+  analysisStarted = true;
+
+  try {
+    analysisStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: false
+    });
+
+    const video = document.getElementById('analysisVideo');
+    const canvas = document.getElementById('analysisCanvas');
+    video.srcObject = analysisStream;
+
+    await new Promise(res => { video.onloadedmetadata = res; });
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    analysisFaceMesh = new FaceMesh({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+    });
+    analysisFaceMesh.setOptions({
+      maxNumFaces: 1, refineLandmarks: true,
+      minDetectionConfidence: 0.6, minTrackingConfidence: 0.6
+    });
+    analysisFaceMesh.onResults(onAnalysisResults);
+
+    analysisCamera = new Camera(video, {
+      onFrame: async () => { await analysisFaceMesh.send({ image: video }); },
+      width: video.videoWidth, height: video.videoHeight
+    });
+    analysisCamera.start();
+    document.getElementById('analysisLoading').classList.add('hidden');
+
+  } catch (err) {
+    document.getElementById('analysisLoading').classList.add('hidden');
+    document.getElementById('analysisPerm').classList.add('show');
+  }
+}
+
+function retryAnalysis() {
+  document.getElementById('analysisPerm').classList.remove('show');
+  document.getElementById('analysisLoading').classList.remove('hidden');
+  analysisStarted = false;
+  startFaceAnalysis();
+}
+
+function onAnalysisResults(results) {
+  const video = document.getElementById('analysisVideo');
+  const canvas = document.getElementById('analysisCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(video, 0, 0, W, H);
+
+  if (analysisComplete) return;
+
+  if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+    analysisFrameCount = 0;
+    analysisSampleBuffer = [];
+    document.getElementById('analysisStatusText').textContent = 'Looking for your face...';
+    document.getElementById('analysisProgress').style.width = '0%';
+    document.getElementById('faceGuide').classList.remove('locked');
+    document.getElementById('analysisSubText').textContent = 'POSITION YOUR FACE IN THE GUIDE';
+    return;
+  }
+
+  const lm = results.multiFaceLandmarks[0];
+  const metrics = extractFaceMetrics(lm, W, H);
+
+  // Only count when face is reasonably centred and at good size
+  const eyeCenterX = ((lm[33].x + lm[263].x) / 2) * W;
+  const eyeCenterY = ((lm[33].y + lm[263].y) / 2) * H;
+  const faceCentred = Math.abs(eyeCenterX - W/2) < W*0.25 && eyeCenterY > H*0.15 && eyeCenterY < H*0.75;
+
+  if (faceCentred && metrics.eyeDistance > W * 0.08) {
+    analysisFrameCount++;
+    analysisSampleBuffer.push(metrics);
+    if (analysisSampleBuffer.length > ANALYSIS_SAMPLES) analysisSampleBuffer.shift();
+
+    const progress = Math.min(100, (analysisFrameCount / ANALYSIS_SAMPLES) * 100);
+    document.getElementById('analysisProgress').style.width = progress + '%';
+    document.getElementById('faceGuide').classList.add('locked');
+    document.getElementById('analysisSubText').textContent = 'HOLD STILL...';
+
+    if (analysisFrameCount < 15) document.getElementById('analysisStatusText').textContent = 'Face detected — hold still...';
+    else if (analysisFrameCount < 35) document.getElementById('analysisStatusText').textContent = 'Measuring face proportions...';
+    else document.getElementById('analysisStatusText').textContent = 'Almost done...';
+
+    if (analysisFrameCount >= ANALYSIS_SAMPLES) {
+      analysisComplete = true;
+      // Average metrics across samples
+      const avgMetrics = averageMetrics(analysisSampleBuffer);
+      const shape = determineFaceShape(avgMetrics);
+      state.faceShape = shape;
+      state.faceMetrics = avgMetrics;
+      setTimeout(() => showResults(), 400);
+    }
+  } else {
+    if (analysisFrameCount > 0) analysisFrameCount = Math.max(0, analysisFrameCount - 2);
+    document.getElementById('analysisProgress').style.width = (analysisFrameCount / ANALYSIS_SAMPLES * 100) + '%';
+    document.getElementById('faceGuide').classList.remove('locked');
+    document.getElementById('analysisSubText').textContent = faceCentred ? 'MOVE CLOSER' : 'CENTRE YOUR FACE';
+    document.getElementById('analysisStatusText').textContent = 'Centre your face in the guide';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  FACE SHAPE DETECTION ENGINE
+// ═══════════════════════════════════════════════════════
+function extractFaceMetrics(lm, W, H) {
+  const p = (idx) => ({ x: lm[idx].x * W, y: lm[idx].y * H });
+  const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+
+  // Key measurements
+  const leftEye = p(33), rightEye = p(263);
+  const leftCheek = p(234), rightCheek = p(454);
+  const foreheadTop = p(10);
+  const chin = p(152);
+  const leftJaw = p(172), rightJaw = p(397);
+  const leftTemple = p(127), rightTemple = p(356);
+  const noseTip = p(4);
+  const leftBrow = p(70), rightBrow = p(300);
+
+  const eyeDistance = dist(leftEye, rightEye);
+  const faceWidth = dist(leftCheek, rightCheek);            // widest point (cheekbones)
+  const foreheadWidth = dist(leftTemple, rightTemple);      // forehead width
+  const jawWidth = dist(leftJaw, rightJaw);                 // jaw width
+  const faceHeight = dist(foreheadTop, chin);               // total face height
+  const upperFace = dist(foreheadTop, noseTip);             // forehead to nose
+  const lowerFace = dist(noseTip, chin);                    // nose to chin
+
+  // Ratios
+  const widthToHeight = faceWidth / faceHeight;
+  const jawToForehead = jawWidth / foreheadWidth;
+  const jawToCheek = jawWidth / faceWidth;
+  const foreheadToCheek = foreheadWidth / faceWidth;
+  const upperToLower = upperFace / lowerFace;
+
+  return {
+    eyeDistance, faceWidth, foreheadWidth, jawWidth,
+    faceHeight, upperFace, lowerFace,
+    widthToHeight, jawToForehead, jawToCheek,
+    foreheadToCheek, upperToLower,
+  };
+}
+
+function averageMetrics(samples) {
+  const keys = Object.keys(samples[0]);
+  const avg = {};
+  keys.forEach(k => {
+    avg[k] = samples.reduce((sum, s) => sum + s[k], 0) / samples.length;
+  });
+  return avg;
+}
+
+function determineFaceShape(m) {
+  // Rule-based face shape detection using ratios
+  const { widthToHeight, jawToForehead, jawToCheek, foreheadToCheek, upperToLower } = m;
+
+  // ROUND: wide, short, jaw ≈ forehead ≈ cheek
+  if (widthToHeight > 0.78 && jawToCheek > 0.80 && foreheadToCheek > 0.80) return 'round';
+
+  // SQUARE: wide, angular jaw close to forehead, strong jaw
+  if (widthToHeight > 0.70 && jawToForehead > 0.88 && jawToCheek > 0.82) return 'square';
+
+  // OBLONG/RECTANGLE: narrow width, long face
+  if (widthToHeight < 0.62) return 'oblong';
+
+  // HEART: wider forehead, narrower jaw
+  if (foreheadToCheek > 0.88 && jawToCheek < 0.75) return 'heart';
+
+  // DIAMOND: narrow forehead, prominent cheekbones, narrow jaw
+  if (foreheadToCheek < 0.78 && jawToCheek < 0.78) return 'diamond';
+
+  // TRIANGLE: narrow forehead, wide jaw
+  if (foreheadToCheek < 0.78 && jawToCheek > 0.85) return 'triangle';
+
+  // Default: OVAL (balanced proportions)
+  return 'oval';
+}
+
+// ═══════════════════════════════════════════════════════
+//  FACE SHAPE DATA
+// ═══════════════════════════════════════════════════════
+const FACE_SHAPE_DATA = {
+  oval: {
+    icon: '🥚',
+    desc: 'Your face is balanced and proportional with gently curved edges. Oval faces are the most versatile — almost any frame style suits you.',
+    suits: ['aviator','wayfarer','round','rectangle','square','cat-eye','geometric','oval','browline','sport'],
+    reason: (frame) => `${frame.shape} frames complement your balanced oval proportions beautifully. ${getOccasionReason(frame)}`
+  },
+  round: {
+    icon: '⭕',
+    desc: 'Your face has full, curved features with similar width and height. Angular and geometric frames add definition and elongate your face.',
+    suits: ['rectangle','square','wayfarer','geometric','browline','aviator'],
+    reason: (frame) => `${frame.shape} frames add angular contrast to your round features, creating a more defined, elongated look. ${getOccasionReason(frame)}`
+  },
+  square: {
+    icon: '⬛',
+    desc: 'Your face has a strong jawline with similar width throughout. Round and oval frames soften your strong features.',
+    suits: ['round','oval','aviator','cat-eye','geometric'],
+    reason: (frame) => `${frame.shape} frames soften your strong jawline with curved lines that balance your angular features. ${getOccasionReason(frame)}`
+  },
+  oblong: {
+    icon: '📏',
+    desc: 'Your face is longer than it is wide. Wider frames and decorative temples add width and break the vertical length.',
+    suits: ['wayfarer','browline','square','geometric','aviator'],
+    reason: (frame) => `${frame.shape} frames add width to balance the length of your face, creating perfect visual harmony. ${getOccasionReason(frame)}`
+  },
+  heart: {
+    icon: '♡',
+    desc: 'Your face is wider at the forehead and narrows toward the chin. Frames wider at the bottom balance your features.',
+    suits: ['aviator','round','oval','cat-eye','wayfarer'],
+    reason: (frame) => `${frame.shape} frames draw attention downward, perfectly balancing your wider forehead with your narrower chin. ${getOccasionReason(frame)}`
+  },
+  diamond: {
+    icon: '♦',
+    desc: 'Your face is narrow at both forehead and jaw with wide, prominent cheekbones. Frames that highlight the eyes work best.',
+    suits: ['cat-eye','oval','browline','wayfarer','round'],
+    reason: (frame) => `${frame.shape} frames highlight your striking cheekbones and eyes while softening your distinctive face structure. ${getOccasionReason(frame)}`
+  },
+  triangle: {
+    icon: '▲',
+    desc: 'Your face is narrow at the forehead and wider at the jaw. Frames with more width and detail on top balance your proportions.',
+    suits: ['browline','cat-eye','aviator','wayfarer','geometric'],
+    reason: (frame) => `${frame.shape} frames draw attention upward to your eyes, balancing your strong jaw with upper facial width. ${getOccasionReason(frame)}`
+  },
+};
+
+function getOccasionReason(frame) {
+  if (!frame.occasions || frame.occasions.length === 0) return '';
+  return `Great for ${frame.occasions.slice(0, 2).join(' and ')} wear.`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  AI SUGGESTION ENGINE
+// ═══════════════════════════════════════════════════════
+function scoreFrame(frame, faceShape, gender) {
+  let score = 0;
+  const shapeData = FACE_SHAPE_DATA[faceShape];
+
+  // Layer 1: Frame shape vs face shape compatibility
+  const shapeMatch = shapeData.suits.indexOf(frame.shape);
+  if (shapeMatch !== -1) {
+    score += 50 - (shapeMatch * 6); // Higher score for better ranked shapes
+  }
+
+  // Layer 2: Admin-tagged face shapes (your manual tags add weight)
+  if (frame.faceShapes && frame.faceShapes.includes(faceShape)) {
+    score += 30; // Strong bonus when you explicitly tagged it
+  }
+
+  // Layer 3: Gender match
+  if (frame.gender === gender || frame.gender === 'unisex') {
+    score += 15;
+  } else if (gender === 'unisex') {
+    score += 10; // Showing all frames
+  }
+
+  // Layer 4: Normalize 0-100
+  return Math.min(100, Math.max(0, score));
+}
+
+function buildSuggestions(frames, faceShape, gender) {
+  // Filter by gender
+  const genderFiltered = gender === 'unisex'
+    ? frames
+    : frames.filter(f => f.gender === gender || f.gender === 'unisex');
+
+  // Score all
+  const scored = genderFiltered.map(f => ({
+    ...f,
+    score: scoreFrame(f, faceShape, gender)
+  }));
+
+  // Sort by score descending
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SCREEN 3 — RESULTS
+// ═══════════════════════════════════════════════════════
+async function showResults() {
+  // Stop analysis camera
+  if (analysisCamera) { try { analysisCamera.stop(); } catch(e){} }
+  if (analysisStream) { analysisStream.getTracks().forEach(t => t.stop()); }
+
+  state.allFrames = await dbGetAll();
+  const faceData = FACE_SHAPE_DATA[state.faceShape] || FACE_SHAPE_DATA.oval;
+  state.suggestions = buildSuggestions(state.allFrames, state.faceShape, state.gender);
+
+  // Update face result card
+  document.getElementById('faceShapeIcon').textContent = faceData.icon;
+  document.getElementById('faceShapeName').textContent =
+    state.faceShape.charAt(0).toUpperCase() + state.faceShape.slice(1) + ' Face';
+  document.getElementById('faceShapeDesc').textContent = faceData.desc;
+
+  // Render top 6 suggestions
+  const top6 = state.suggestions.slice(0, 6);
+  document.getElementById('suggestCount').textContent = `${top6.length} matches`;
+
+  const list = document.getElementById('suggestionList');
+  if (top6.length === 0) {
+    list.innerHTML = `<div class="empty-inv">No frames in inventory yet.<br>Ask the store to add frames.</div>`;
+  } else {
+    list.innerHTML = top6.map((frame, i) => {
+      const reason = faceData.reason(frame);
+      const scoreDisplay = Math.round(frame.score);
+      const tags = (frame.occasions || []).slice(0, 2);
+      return `
+        <div class="suggestion-card" onclick="openFrameDetail('${frame.id}','screenResults')">
+          ${frame.frontImage
+            ? `<img class="suggestion-img" src="${frame.frontImage}" alt="${frame.name}" loading="lazy">`
+            : `<div class="suggestion-img-placeholder">👓</div>`}
+          <div class="suggestion-info">
+            <div class="suggestion-name">${frame.name}</div>
+            <div class="suggestion-reason">${reason}</div>
+            <div class="suggestion-tags">
+              ${tags.map(t => `<span class="stag">${t}</span>`).join('')}
+              <span class="stag">${frame.shape || 'frame'}</span>
+            </div>
+          </div>
+          <div class="score-badge">${scoreDisplay}%</div>
+        </div>`;
+    }).join('');
+  }
+
+  goToScreen('screenResults');
+}
+
+// ═══════════════════════════════════════════════════════
+//  SCREEN 4 — FRAME DETAIL
+// ═══════════════════════════════════════════════════════
+function openFrameDetail(frameId, fromScreen) {
+  const frame = state.allFrames.find(f => f.id === frameId)
+    || state.suggestions.find(f => f.id === frameId);
+  if (!frame) return;
+
+  state.detailFrame = frame;
+  state.detailFrom = fromScreen;
+  state.previousScreen = fromScreen;
+
+  document.getElementById('detailFrontImg').src = frame.frontImage || '';
+  document.getElementById('detailFrontImg').style.display = frame.frontImage ? 'block' : 'none';
+  document.getElementById('detailName').textContent = frame.name;
+
+  // Side image
+  if (frame.sideImage) {
+    document.getElementById('detailSideImg').src = frame.sideImage;
+    document.getElementById('detailSideWrap').style.display = 'flex';
+  } else {
+    document.getElementById('detailSideWrap').style.display = 'none';
+  }
+
+  // Meta tags
+  const metaItems = [frame.gender, frame.type, frame.shape, frame.size, frame.material, frame.color]
+    .filter(Boolean);
+  document.getElementById('detailMeta').innerHTML = metaItems.map(m => `<span class="dmeta">${m}</span>`).join('');
+
+  // Occasions
+  const occ = frame.occasions || [];
+  document.getElementById('detailOccasions').innerHTML = occ.map(o => `<span class="detail-tag">${o}</span>`).join('');
+  document.getElementById('detailOccasionsSection').style.display = occ.length > 0 ? 'block' : 'none';
+
+  // Face shapes
+  const fs = frame.faceShapes || [];
+  document.getElementById('detailFaceShapes').innerHTML = fs.map(s => `<span class="detail-tag">${s}</span>`).join('');
+  document.getElementById('detailFaceSection').style.display = fs.length > 0 ? 'block' : 'none';
+
+  // Why it suits (only if we have face analysis)
+  if (state.faceShape && FACE_SHAPE_DATA[state.faceShape]) {
+    const reason = FACE_SHAPE_DATA[state.faceShape].reason(frame);
+    document.getElementById('detailReason').textContent = reason;
+    document.getElementById('detailReasonSection').style.display = 'block';
+  } else {
+    document.getElementById('detailReasonSection').style.display = 'none';
+  }
+
+  goToScreen('screenDetail');
+}
+
+function tryOnFromDetail() {
+  if (!state.detailFrame) return;
+  startTryon(state.detailFrame.id);
+}
+
+function viewCurrentDetail() {
+  const frame = state.stripFrames[state.currentFrameIdx];
+  if (frame) openFrameDetail(frame.id, 'screenTryon');
+}
+
+// ═══════════════════════════════════════════════════════
+//  CALIBRATION
+// ═══════════════════════════════════════════════════════
+const DEFAULT_CALIB = { scaleMultiplier: 1.15, xOffset: 0, yOffset: -15, rotationOffset: 0 };
+let calibration = loadCalibration();
+
+function loadCalibration() {
+  try {
+    const s = localStorage.getItem('lensfit_calib');
+    return s ? { ...DEFAULT_CALIB, ...JSON.parse(s) } : { ...DEFAULT_CALIB };
+  } catch(e) { return { ...DEFAULT_CALIB }; }
+}
+
+function saveCalibration() {
+  try { localStorage.setItem('lensfit_calib', JSON.stringify(calibration)); } catch(e) {}
+}
+
+function updateCalib(key, val, displayId, fmt) {
+  calibration[key] = parseFloat(val);
+  document.getElementById(displayId).textContent = fmt(val);
+  saveCalibration();
+}
+
+function resetCalib() {
+  calibration = { ...DEFAULT_CALIB };
+  saveCalibration();
+  document.getElementById('csScale').value = calibration.scaleMultiplier;
+  document.getElementById('csY').value = calibration.yOffset;
+  document.getElementById('csX').value = calibration.xOffset;
+  document.getElementById('csRot').value = calibration.rotationOffset;
+  document.getElementById('cvScale').textContent = calibration.scaleMultiplier;
+  document.getElementById('cvY').textContent = calibration.yOffset;
+  document.getElementById('cvX').textContent = calibration.xOffset;
+  document.getElementById('cvRot').textContent = calibration.rotationOffset + '°';
+}
+
+function syncCalibSliders() {
+  document.getElementById('csScale').value = calibration.scaleMultiplier;
+  document.getElementById('csY').value = calibration.yOffset;
+  document.getElementById('csX').value = calibration.xOffset;
+  document.getElementById('csRot').value = calibration.rotationOffset;
+  document.getElementById('cvScale').textContent = calibration.scaleMultiplier;
+  document.getElementById('cvY').textContent = calibration.yOffset;
+  document.getElementById('cvX').textContent = calibration.xOffset;
+  document.getElementById('cvRot').textContent = calibration.rotationOffset + '°';
+}
+
+function toggleCalib() {
+  const panel = document.getElementById('calibPanel');
+  const btn = document.getElementById('calibToggle');
+  const open = panel.classList.toggle('show');
+  btn.style.display = open ? 'none' : 'block';
+}
+
+// ═══════════════════════════════════════════════════════
+//  AR SMOOTHING
+// ═══════════════════════════════════════════════════════
+const ALPHA = 0.22;
+let smooth = { x: null, y: null, scale: null, rotation: null };
+
+function expSmooth(prev, next) {
+  return prev === null ? next : prev + ALPHA * (next - prev);
+}
+
+function smoothTransform(raw) {
+  smooth.x = expSmooth(smooth.x, raw.x);
+  smooth.y = expSmooth(smooth.y, raw.y);
+  smooth.scale = expSmooth(smooth.scale, raw.scale);
+  if (smooth.rotation !== null) {
+    let diff = raw.rotation - smooth.rotation;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    smooth.rotation += ALPHA * diff;
+  } else {
+    smooth.rotation = raw.rotation;
+  }
+  return { x: smooth.x, y: smooth.y, scale: smooth.scale, rotation: smooth.rotation };
+}
+
+// ═══════════════════════════════════════════════════════
+//  SCREEN 5 — AR TRY-ON
+// ═══════════════════════════════════════════════════════
+let tryonFaceMesh, tryonCamera, tryonStream;
+let tryonStarted = false;
+let frameImages = {}; // preloaded Image objects keyed by frame.id
+let currentLandmarks = null;
+
+async function startTryon(focusFrameId) {
+  goToScreen('screenTryon');
+  syncCalibSliders();
+  smooth = { x: null, y: null, scale: null, rotation: null };
+
+  // Build strip: suggestions first, then rest
+  const suggested = state.suggestions;
+  const suggestedIds = new Set(suggested.map(f => f.id));
+  const rest = state.allFrames.filter(f => !suggestedIds.has(f.id));
+
+  // Gender filter for rest
+  const genderFiltered = state.gender === 'unisex'
+    ? rest
+    : rest.filter(f => f.gender === state.gender || f.gender === 'unisex');
+
+  state.stripFrames = [...suggested, ...genderFiltered];
+
+  // Find starting index
+  const startIdx = focusFrameId
+    ? Math.max(0, state.stripFrames.findIndex(f => f.id === focusFrameId))
+    : 0;
+  state.currentFrameIdx = startIdx;
+
+  // Preload all frame images
+  await preloadFrameImages(state.stripFrames);
+
+  buildFrameStrip();
+  updateTryonTopBar();
+
+  if (tryonStarted) {
+    scrollStripToActive();
+    return;
+  }
+  tryonStarted = true;
+
+  try {
+    tryonStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: false
+    });
+
+    const video = document.getElementById('tryonVideo');
+    const canvas = document.getElementById('tryonCanvas');
+    video.srcObject = tryonStream;
+    await new Promise(res => { video.onloadedmetadata = res; });
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    tryonFaceMesh = new FaceMesh({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+    });
+    tryonFaceMesh.setOptions({
+      maxNumFaces: 1, refineLandmarks: true,
+      minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+    });
+    tryonFaceMesh.onResults(onTryonResults);
+
+    tryonCamera = new Camera(video, {
+      onFrame: async () => { await tryonFaceMesh.send({ image: video }); },
+      width: video.videoWidth, height: video.videoHeight
+    });
+    tryonCamera.start();
+    document.getElementById('tryonLoading').classList.add('hidden');
+    scrollStripToActive();
+
+  } catch (err) {
+    document.getElementById('tryonLoading').classList.add('hidden');
+    document.getElementById('tryonPerm').classList.add('show');
+  }
+}
+
+function retryTryon() {
+  document.getElementById('tryonPerm').classList.remove('show');
+  document.getElementById('tryonLoading').classList.remove('hidden');
+  tryonStarted = false;
+  startTryon(null);
+}
+
+function preloadFrameImages(frames) {
+  return Promise.all(frames.map(frame => {
+    if (!frame.frontImage) return Promise.resolve();
+    if (frameImages[frame.id]) return Promise.resolve();
+    return new Promise(res => {
+      const img = new Image();
+      img.onload = res;
+      img.onerror = res;
+      img.src = frame.frontImage;
+      frameImages[frame.id] = img;
+    });
+  }));
+}
+
+function onTryonResults(results) {
+  const video = document.getElementById('tryonVideo');
+  const canvas = document.getElementById('tryonCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(W, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0, W, H);
+
+  if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+    currentLandmarks = results.multiFaceLandmarks[0];
+    document.getElementById('trackDot').classList.add('on');
+    document.getElementById('trackText').textContent = 'Tracking';
+    renderFrameOverlay(ctx, currentLandmarks, W, H);
+  } else {
+    currentLandmarks = null;
+    smooth = { x: null, y: null, scale: null, rotation: null };
+    document.getElementById('trackDot').classList.remove('on');
+    document.getElementById('trackText').textContent = 'No face detected';
+  }
+
+  ctx.restore();
+}
+
+function renderFrameOverlay(ctx, lm, W, H) {
+  const frame = state.stripFrames[state.currentFrameIdx];
+  if (!frame) return;
+  const img = frameImages[frame.id];
+  if (!img || !img.complete || !img.naturalWidth) return;
+
+  const lEye = lm[33], rEye = lm[263];
+  const lFace = lm[234], rFace = lm[454];
+
+  const lEyeX = lEye.x * W, lEyeY = lEye.y * H;
+  const rEyeX = rEye.x * W, rEyeY = rEye.y * H;
+  const eyeDist = Math.hypot(rEyeX - lEyeX, rEyeY - lEyeY);
+  const eyeCenterX = (lEyeX + rEyeX) * 0.5;
+  const eyeCenterY = (lEyeY + rEyeY) * 0.5;
+  const rawAngle = Math.atan2(rEyeY - lEyeY, rEyeX - lEyeX);
+
+  // Scale based on eye distance relative to image width
+  const baseScale = eyeDist / (img.naturalWidth * 0.45);
+  const finalScale = baseScale * calibration.scaleMultiplier;
+
+  // Offset rotated with face angle
+  const cos = Math.cos(rawAngle), sin = Math.sin(rawAngle);
+  const ox = calibration.xOffset * cos - calibration.yOffset * sin;
+  const oy = calibration.xOffset * sin + calibration.yOffset * cos;
+
+  const raw = {
+    x: eyeCenterX + ox,
+    y: eyeCenterY + oy,
+    scale: finalScale,
+    rotation: rawAngle + (calibration.rotationOffset * Math.PI / 180),
+  };
+
+  const t = smoothTransform(raw);
+
+  ctx.save();
+  ctx.translate(t.x, t.y);
+  ctx.rotate(t.rotation);
+  ctx.scale(t.scale, t.scale);
+  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2, img.naturalWidth, img.naturalHeight);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+//  FRAME STRIP
+// ═══════════════════════════════════════════════════════
+const suggestedIds = new Set();
+
+function buildFrameStrip() {
+  const strip = document.getElementById('frameStrip');
+  const topSuggested = new Set(state.suggestions.map(f => f.id));
+
+  strip.innerHTML = state.stripFrames.map((frame, i) => {
+    const isActive = i === state.currentFrameIdx;
+    const isSuggested = topSuggested.has(frame.id);
+    return `
+      <div class="strip-item ${isActive ? 'active' : ''}" id="strip_${i}" onclick="selectStripFrame(${i})">
+        <div class="strip-img">
+          ${frame.frontImage
+            ? `<img src="${frame.frontImage}" alt="${frame.name}" loading="lazy">`
+            : `<span style="font-size:18px;opacity:0.3">👓</span>`}
+        </div>
+        <div class="strip-item-name">${frame.name}</div>
+        ${isSuggested ? '<div class="strip-suggested-dot"></div>' : ''}
+      </div>`;
+  }).join('');
+}
+
+function selectStripFrame(idx) {
+  const prev = document.getElementById('strip_' + state.currentFrameIdx);
+  if (prev) prev.classList.remove('active');
+  state.currentFrameIdx = idx;
+  const next = document.getElementById('strip_' + idx);
+  if (next) next.classList.add('active');
+  smooth = { x: null, y: null, scale: null, rotation: null };
+  updateTryonTopBar();
+  scrollStripToActive();
+}
+
+function scrollStripToActive() {
+  const el = document.getElementById('strip_' + state.currentFrameIdx);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+function updateTryonTopBar() {
+  const frame = state.stripFrames[state.currentFrameIdx];
+  document.getElementById('tryonFrameName').textContent = frame ? frame.name : '—';
+}
+
+// ═══════════════════════════════════════════════════════
+//  BROWSE MODAL
+// ═══════════════════════════════════════════════════════
+let browseFilter = 'all';
+
+function openBrowseModal() {
+  browseFilter = 'all';
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelector('.filter-chip').classList.add('active');
+  renderBrowseGrid(state.allFrames);
+  document.getElementById('browseModal').classList.add('show');
+}
+
+function closeBrowseModal() {
+  document.getElementById('browseModal').classList.remove('show');
+}
+
+function setBrowseFilter(filter, el) {
+  browseFilter = filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const filtered = filter === 'all'
+    ? state.allFrames
+    : state.allFrames.filter(f => f.gender === filter || f.shape === filter);
+  renderBrowseGrid(filtered);
+}
+
+function renderBrowseGrid(frames) {
+  const grid = document.getElementById('browseGrid');
+  if (frames.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--muted);font-size:12px">No frames found.</div>`;
+    return;
+  }
+  grid.innerHTML = frames.map(f => `
+    <div class="browse-card" onclick="browseSelectFrame('${f.id}')">
+      <div class="browse-card-img">
+        ${f.frontImage
+          ? `<img src="${f.frontImage}" alt="${f.name}" loading="lazy">`
+          : `<span style="font-size:20px;opacity:0.3">👓</span>`}
+      </div>
+      <div class="browse-card-name">${f.name}</div>
+    </div>`).join('');
+}
+
+function browseSelectFrame(frameId) {
+  closeBrowseModal();
+  openFrameDetail(frameId, 'screenResults');
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+openDB().catch(e => console.error('DB error:', e));
+</script>
+</body>
+</html>
