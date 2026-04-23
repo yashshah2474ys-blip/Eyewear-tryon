@@ -259,8 +259,8 @@ body{padding-bottom:60px}
     <div class="form-group form-full" style="margin-bottom:16px">
       <div class="form-label">Frame Photos</div>
       <div style="font-size:10px;color:var(--accent2);margin-bottom:10px;line-height:1.7;padding:8px 12px;background:rgba(126,184,164,0.06);border:1px solid rgba(126,184,184,0.2);border-radius:8px">
-        📌 <strong>Front shot:</strong> Temples OPEN, straight-on, white or transparent background.<br>
-        Upload a pre-edited transparent PNG for best AR results (lenses see-through).
+        📌 <strong>Front shot:</strong> Temples OPEN, straight-on. Any solid background colour is auto-removed.<br>
+        Transparent PNG gives the best AR result. White, black, or any uniform background also works.
       </div>
       <div class="photo-row">
         <div class="photo-zone" id="frontZone" onclick="triggerUpload('frontInput')">
@@ -440,7 +440,7 @@ body{padding-bottom:60px}
     <div class="form-group" style="margin-bottom:14px">
       <label class="form-label">Background Removal Threshold</label>
       <input class="form-input" id="bgThreshold" type="number" value="240" min="200" max="255">
-      <div style="font-size:10px;color:var(--muted);margin-top:4px">Higher = more aggressive white removal. Default 240 is good for clean white backgrounds.</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">Controls edge tolerance (0–255). Background colour is auto-detected from image corners. Default 240 works well for most photos.</div>
     </div>
     <button class="btn primary" onclick="saveSettings()">SAVE SETTINGS</button>
   </div>
@@ -648,18 +648,27 @@ function removeBackground(ctx, w, h, threshold) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
 
-  // Sample background color from corners (average of 4 corners)
+  // Sample the actual background colour from the 4 corners (average)
   function getPixel(x, y) {
     const i = (y * w + x) * 4;
     return [data[i], data[i+1], data[i+2], data[i+3]];
   }
+  const corners = [getPixel(0,0), getPixel(w-1,0), getPixel(0,h-1), getPixel(w-1,h-1)];
+  const bgR = corners.reduce((s,p)=>s+p[0],0)/4;
+  const bgG = corners.reduce((s,p)=>s+p[1],0)/4;
+  const bgB = corners.reduce((s,p)=>s+p[2],0)/4;
 
-  // Flood fill from all 4 corners to remove background
-  // Using a queue-based flood fill for accuracy
+  // Tolerance: how close a pixel must be to the sampled bg colour to be removed
+  const TOL = 40;
+
+  function isBg(r,g,b,a) {
+    if (a < 10) return true;
+    return Math.abs(r-bgR)<TOL && Math.abs(g-bgG)<TOL && Math.abs(b-bgB)<TOL;
+  }
+
+  // Queue-based flood fill from all edges
   const visited = new Uint8Array(w * h);
   const queue = [];
-
-  // Seed corners and edges
   for (let x = 0; x < w; x++) { queue.push(x, 0); queue.push(x, h-1); }
   for (let y = 1; y < h-1; y++) { queue.push(0, y); queue.push(w-1, y); }
 
@@ -671,10 +680,8 @@ function removeBackground(ctx, w, h, threshold) {
     visited[idx] = 1;
     const pi = idx * 4;
     const r = data[pi], g = data[pi+1], b = data[pi+2], a = data[pi+3];
-    // Is this pixel background? (near-white or already transparent)
-    if (a < 10 || (r >= threshold && g >= threshold && b >= threshold)) {
-      data[pi+3] = 0; // make transparent
-      // Add neighbors
+    if (isBg(r,g,b,a)) {
+      data[pi+3] = 0;
       if (x > 0)   { queue.push(x-1, y); }
       if (x < w-1) { queue.push(x+1, y); }
       if (y > 0)   { queue.push(x, y-1); }
@@ -682,12 +689,13 @@ function removeBackground(ctx, w, h, threshold) {
     }
   }
 
-  // Light anti-aliasing pass on edges
+  // Feather edges — soften pixels that are close to the bg colour but not removed
   for (let i = 3; i < data.length; i += 4) {
-    if (data[i] > 0 && data[i] < 255) {
-      // Semi-transparent edge pixels — keep but don't over-remove
-      const gray = (data[i-3] + data[i-2] + data[i-1]) / 3;
-      if (gray > threshold - 20) data[i] = Math.round(data[i] * (1 - (gray - (threshold-20)) / 40));
+    if (data[i] > 0) {
+      const r=data[i-3],g=data[i-2],b=data[i-1];
+      const dr=Math.abs(r-bgR),dg=Math.abs(g-bgG),db=Math.abs(b-bgB);
+      const closeness = Math.max(0, TOL - Math.max(dr,dg,db));
+      if (closeness > 0) data[i] = Math.round(data[i] * (closeness / TOL < 0.5 ? 1 : 1 - (closeness/TOL - 0.5)*2));
     }
   }
 

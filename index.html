@@ -46,7 +46,7 @@ html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-fam
 
 /* SCREEN 2 — ANALYSIS */
 #screenAnalysis{background:#000;position:relative;overflow:hidden}
-#analysisVideo{display:none}
+#analysisVideo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 #analysisCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
 
 /* The face oval tracks the actual face via JS */
@@ -174,7 +174,7 @@ html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-fam
 
 /* SCREEN 5 — TRY-ON */
 #screenTryon{background:#000;position:relative;overflow:hidden}
-#tryonVideo{display:none}
+#tryonVideo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 #tryonCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
 .tryon-topbar{
   position:absolute;top:0;left:0;right:0;z-index:5;
@@ -484,12 +484,13 @@ async function startAnalysis(){
     const cvs=document.getElementById('analysisCanvas');
     vid.srcObject=aStream;
     await new Promise(r=>{vid.onloadedmetadata=r});
-    cvs.width=vid.videoWidth;cvs.height=vid.videoHeight;
+    if(!vid.videoWidth)await new Promise(r=>{vid.onloadeddata=r});
+    cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
     aFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     aFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
     aFaceMesh.onResults(onAnalysisResults);
-    aCamera=new Camera(vid,{onFrame:async()=>{await aFaceMesh.send({image:vid})},width:vid.videoWidth,height:vid.videoHeight});
-    aCamera.start();
+    aCamera=new Camera(vid,{onFrame:async()=>{await aFaceMesh.send({image:vid})},width:cvs.width,height:cvs.height});
+    await aCamera.start();
     document.getElementById('aLoading').classList.add('hidden');
   }catch(e){
     document.getElementById('aLoading').classList.add('hidden');
@@ -759,12 +760,13 @@ async function startTryon(focusId){
     const cvs=document.getElementById('tryonCanvas');
     vid.srcObject=tStream;
     await new Promise(r=>{vid.onloadedmetadata=r});
-    cvs.width=vid.videoWidth;cvs.height=vid.videoHeight;
+    if(!vid.videoWidth)await new Promise(r=>{vid.onloadeddata=r});
+    cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     tFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
     tFaceMesh.onResults(onTryonResults);
-    tCamera=new Camera(vid,{onFrame:async()=>{await tFaceMesh.send({image:vid})},width:vid.videoWidth,height:vid.videoHeight});
-    tCamera.start();
+    tCamera=new Camera(vid,{onFrame:async()=>{await tFaceMesh.send({image:vid})},width:cvs.width,height:cvs.height});
+    await tCamera.start();
     document.getElementById('tLoading').classList.add('hidden');
     scrollToActive();
   }catch(e){
