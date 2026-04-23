@@ -375,15 +375,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <span id="ttrack">Searching...</span>
   </div>
   <button class="calib-toggle-btn" id="calibToggleBtn" onclick="toggleCalib()">⚙ ADJUST</button>
+  <button class="calib-toggle-btn" id="debugToggleBtn" onclick="toggleDebug()" style="left:14px;right:auto;top:108px;">⬡ DEBUG</button>
   <div class="calib-panel" id="calibPanel">
     <div class="cp-title">Frame Alignment</div>
     <div class="cp-row">
-      <div class="cp-lrow"><span class="cp-lbl">SCALE</span><span class="cp-val" id="cvScale">1.00</span></div>
-      <input type="range" id="csScale" min="0.4" max="2.5" step="0.01" value="1.0" oninput="updateCalib('scaleMultiplier',this.value,'cvScale',v=>parseFloat(v).toFixed(2))">
+      <div class="cp-lrow"><span class="cp-lbl">SCALE</span><span class="cp-val" id="cvScale">1.15</span></div>
+      <input type="range" id="csScale" min="0.4" max="2.5" step="0.01" value="1.15" oninput="updateCalib('scaleMultiplier',this.value,'cvScale',v=>parseFloat(v).toFixed(2))">
     </div>
     <div class="cp-row">
-      <div class="cp-lrow"><span class="cp-lbl">Y OFFSET</span><span class="cp-val" id="cvY">0</span></div>
-      <input type="range" id="csY" min="-100" max="100" step="1" value="0" oninput="updateCalib('yOffset',this.value,'cvY',v=>parseFloat(v).toFixed(0))">
+      <div class="cp-lrow"><span class="cp-lbl">Y OFFSET</span><span class="cp-val" id="cvY">-15</span></div>
+      <input type="range" id="csY" min="-100" max="100" step="1" value="-15" oninput="updateCalib('yOffset',this.value,'cvY',v=>parseFloat(v).toFixed(0))">
     </div>
     <div class="cp-row">
       <div class="cp-lrow"><span class="cp-lbl">X OFFSET</span><span class="cp-val" id="cvX">0</span></div>
@@ -707,7 +708,7 @@ function tryOnFromDetail(){if(S.detailFrame)startTryon(S.detailFrame.id)}
 function viewDetail(){const f=S.stripFrames[S.currentIdx];if(f)openDetail(f.id,'screenTryon')}
 
 // ═══════════ CALIBRATION ═══════════
-const DCAL={scaleMultiplier:1.0,xOffset:0,yOffset:0,rotationOffset:0};
+const DCAL={scaleMultiplier:1.15,xOffset:0,yOffset:-15,rotationOffset:0};
 let CAL=(()=>{try{const s=localStorage.getItem('lensfit_calib');return s?{...DCAL,...JSON.parse(s)}:{...DCAL}}catch(e){return{...DCAL}}})();
 function saveCAL(){try{localStorage.setItem('lensfit_calib',JSON.stringify(CAL))}catch(e){}}
 function updateCalib(k,v,di,fmt){CAL[k]=parseFloat(v);document.getElementById(di).textContent=fmt(v);saveCAL()}
@@ -723,8 +724,15 @@ function toggleCalib(){
   const o=p.classList.toggle('show');b.style.display=o?'none':'block';
 }
 
+// ═══════════ DEBUG MODE ═══════════
+let DBG=false;
+function toggleDebug(){
+  DBG=!DBG;
+  document.getElementById('debugToggleBtn').style.borderColor=DBG?'#7eb8a4':'';
+}
+
 // ═══════════ SMOOTHING ═══════════
-const A=0.2;
+const A=0.25;
 let SM={x:null,y:null,sc:null,rot:null};
 function smoothT(r){
   const l=(p,n)=>p===null?n:p+A*(n-p);
@@ -795,6 +803,7 @@ function onTryonResults(results){
     document.getElementById('tdot').classList.add('on');
     document.getElementById('ttrack').textContent='Tracking';
     drawOverlay(ctx,results.multiFaceLandmarks[0],W,H);
+    if(DBG)drawDebug(ctx,results.multiFaceLandmarks[0],W,H);
   }else{
     SM={x:null,y:null,sc:null,rot:null};
     document.getElementById('tdot').classList.remove('on');
@@ -802,14 +811,14 @@ function onTryonResults(results){
   }
 }
 
-// FRAME OVERLAY — anchored at nose bridge (lm 168)
+// FRAME OVERLAY — anchored at eye center (midpoint lm[33] & lm[263])
 // Eye distance / (imgWidth * 0.38) gives correct scale for temples-open front shot
 function drawOverlay(ctx,lm,W,H){
   const f=S.stripFrames[S.currentIdx];if(!f)return;
   const img=fImgs[f.id];if(!img||!img.complete||!img.naturalWidth)return;
-  const lE=lm[33],rE=lm[263],nb=lm[168];
+  const lE=lm[33],rE=lm[263];
   const lEx=lE.x*W,lEy=lE.y*H,rEx=rE.x*W,rEy=rE.y*H;
-  const nbX=nb.x*W,nbY=nb.y*H;
+  const ecX=(lEx+rEx)*0.5,ecY=(lEy+rEy)*0.5;
   const eyeD=Math.hypot(rEx-lEx,rEy-lEy);
   const ang=Math.atan2(rEy-lEy,rEx-lEx);
   // Scale: eyeDist / (imgW * 0.38) — correct for temples-open photo
@@ -818,7 +827,7 @@ function drawOverlay(ctx,lm,W,H){
   const cos=Math.cos(ang),sin=Math.sin(ang);
   const ox=CAL.xOffset*cos-CAL.yOffset*sin;
   const oy=CAL.xOffset*sin+CAL.yOffset*cos;
-  const raw={x:nbX+ox,y:nbY+oy,sc:finalScale,rot:ang+(CAL.rotationOffset*Math.PI/180)};
+  const raw={x:ecX+ox,y:ecY+oy,sc:finalScale,rot:ang+(CAL.rotationOffset*Math.PI/180)};
   const t=smoothT(raw);
   ctx.save();
   ctx.translate(t.x,t.y);
@@ -826,6 +835,19 @@ function drawOverlay(ctx,lm,W,H){
   ctx.scale(t.sc,t.sc);
   ctx.drawImage(img,-img.naturalWidth*0.5,-img.naturalHeight*0.5,img.naturalWidth,img.naturalHeight);
   ctx.restore();
+}
+
+function drawDebug(ctx,lm,W,H){
+  const lE=lm[33],rE=lm[263],lF=lm[234],rF=lm[454];
+  const lEx=lE.x*W,lEy=lE.y*H,rEx=rE.x*W,rEy=rE.y*H;
+  const ecX=(lEx+rEx)*0.5,ecY=(lEy+rEy)*0.5;
+  ctx.fillStyle='#00ff00';
+  ctx.beginPath();ctx.arc(lEx,lEy,5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(rEx,rEy,5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ffff00';
+  ctx.beginPath();ctx.arc(ecX,ecY,6,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#ff00ff';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(lF.x*W,lF.y*H);ctx.lineTo(rF.x*W,rF.y*H);ctx.stroke();
 }
 
 // ═══════════ STRIP ═══════════
