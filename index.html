@@ -36,6 +36,7 @@ html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-fam
   font-size:13px;cursor:pointer;transition:all 0.3s;letter-spacing:0.08em;
   display:flex;align-items:center;gap:14px;text-align:left;
 }
+.gender-btn:hover{border-color:var(--accent);background:rgba(232,213,176,0.04)}
 .gender-btn:active{border-color:var(--accent);background:rgba(232,213,176,0.06);transform:translateX(4px)}
 .gender-icon{font-size:22px;width:36px;text-align:center}
 .gender-btn-text{flex:1}
@@ -314,7 +315,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <div class="analysis-status" id="aStatusText">Looking for your face...</div>
     <div class="prog-wrap"><div class="prog" id="aProgress"></div></div>
   </div>
-  <div class="analysis-back-btn" onclick="goToScreen('screenGender')">← Back</div>
+  <div class="analysis-back-btn" onclick="goBackFromAnalysis()">← Back</div>
   <div class="load-overlay" id="aLoading">
     <div class="load-ring"></div><div class="load-text">LOADING FACE MESH</div>
   </div>
@@ -503,6 +504,18 @@ function retryAnalysis(){
 function stopAnalysis(){
   try{aCamera&&aCamera.stop()}catch(e){}
   try{aStream&&aStream.getTracks().forEach(t=>t.stop())}catch(e){}
+  aStarted=false;aDone=false;aCount=0;aBuf=[];
+}
+function goBackFromAnalysis(){
+  stopAnalysis();
+  document.getElementById('aLoading').classList.remove('hidden');
+  document.getElementById('aPerm').classList.remove('show');
+  document.getElementById('aProgress').style.width='0%';
+  document.getElementById('aStatusText').textContent='Looking for your face...';
+  document.getElementById('aSubText').textContent='POSITION YOUR FACE IN VIEW';
+  document.getElementById('faceGuideOval').classList.remove('visible','locked');
+  document.getElementById('guideBrackets').classList.remove('hidden');
+  goToScreen('screenGender');
 }
 
 function onAnalysisResults(results){
@@ -670,7 +683,7 @@ async function showResults(){
 function openDetail(frameId,from){
   const f=S.allFrames.find(x=>x.id===frameId);
   if(!f)return;
-  S.detailFrame=f;S.prevScreen=from;
+  S.detailFrame=f;
   const fi=document.getElementById('dFrontImg');
   if(f.frontImage){fi.src=f.frontImage;fi.style.display='block'}else fi.style.display='none';
   const sw=document.getElementById('dSideWrap');
