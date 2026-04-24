@@ -484,8 +484,15 @@ async function startAnalysis(){
     const vid=document.getElementById('analysisVideo');
     const cvs=document.getElementById('analysisCanvas');
     vid.srcObject=aStream;
-    await new Promise(r=>{vid.onloadedmetadata=r});
-    if(!vid.videoWidth)await new Promise(r=>{vid.onloadeddata=r});
+    try{await vid.play()}catch(e){}
+    await new Promise(r=>{
+      if(vid.videoWidth>0)return r();
+      const go=()=>{if(vid.videoWidth>0)r()};
+      vid.addEventListener('loadedmetadata',go,{once:true});
+      vid.addEventListener('loadeddata',go,{once:true});
+      vid.addEventListener('canplay',go,{once:true});
+      setTimeout(r,5000);
+    });
     cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
     aFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     aFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
@@ -767,8 +774,15 @@ async function startTryon(focusId){
     const vid=document.getElementById('tryonVideo');
     const cvs=document.getElementById('tryonCanvas');
     vid.srcObject=tStream;
-    await new Promise(r=>{vid.onloadedmetadata=r});
-    if(!vid.videoWidth)await new Promise(r=>{vid.onloadeddata=r});
+    try{await vid.play()}catch(e){}
+    await new Promise(r=>{
+      if(vid.videoWidth>0)return r();
+      const go=()=>{if(vid.videoWidth>0)r()};
+      vid.addEventListener('loadedmetadata',go,{once:true});
+      vid.addEventListener('loadeddata',go,{once:true});
+      vid.addEventListener('canplay',go,{once:true});
+      setTimeout(r,5000);
+    });
     cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     tFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
