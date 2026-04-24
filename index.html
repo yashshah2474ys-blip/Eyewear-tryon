@@ -486,11 +486,10 @@ async function startAnalysis(){
     vid.srcObject=aStream;
     await new Promise(r=>{vid.oncanplay=r;vid.onloadeddata=r;setTimeout(r,5000);vid.play().catch(()=>{})});
     cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
+    document.getElementById('aLoading').classList.add('hidden');
     aFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     aFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
     aFaceMesh.onResults(onAnalysisResults);
-    if(aFaceMesh.initialize)await aFaceMesh.initialize();
-    document.getElementById('aLoading').classList.add('hidden');
     aRunA=true;
     (function aLoop(){if(!aRunA)return;aFaceMesh.send({image:vid}).catch(()=>{}).then(()=>{if(aRunA)requestAnimationFrame(aLoop)})})();
   }catch(e){
@@ -768,12 +767,11 @@ async function startTryon(focusId){
     vid.srcObject=tStream;
     await new Promise(r=>{vid.oncanplay=r;vid.onloadeddata=r;setTimeout(r,5000);vid.play().catch(()=>{})});
     cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
+    document.getElementById('tLoading').classList.add('hidden');
+    scrollToActive();
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     tFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
     tFaceMesh.onResults(onTryonResults);
-    if(tFaceMesh.initialize)await tFaceMesh.initialize();
-    document.getElementById('tLoading').classList.add('hidden');
-    scrollToActive();
     tRunT=true;
     (function tLoop(){if(!tRunT)return;tFaceMesh.send({image:vid}).catch(()=>{}).then(()=>{if(tRunT)requestAnimationFrame(tLoop)})})();
   }catch(e){
