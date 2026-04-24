@@ -472,7 +472,7 @@ function goBack(){if(S.prevScreen)goToScreen(S.prevScreen)}
 function selectGender(g){S.gender=g;startAnalysis()}
 
 // ═══════════ SCREEN 2 — FACE ANALYSIS ═══════════
-let aFaceMesh,aCamera,aStream,aStarted=false,aDone=false,aCount=0,aBuf=[];
+let aFaceMesh,aStream,aStarted=false,aDone=false,aCount=0,aBuf=[],aRunA=false;
 const SAMPLES=45;
 
 async function startAnalysis(){
@@ -484,22 +484,15 @@ async function startAnalysis(){
     const vid=document.getElementById('analysisVideo');
     const cvs=document.getElementById('analysisCanvas');
     vid.srcObject=aStream;
-    try{await vid.play()}catch(e){}
-    await new Promise(r=>{
-      if(vid.videoWidth>0)return r();
-      const go=()=>{if(vid.videoWidth>0)r()};
-      vid.addEventListener('loadedmetadata',go,{once:true});
-      vid.addEventListener('loadeddata',go,{once:true});
-      vid.addEventListener('canplay',go,{once:true});
-      setTimeout(r,5000);
-    });
+    await new Promise(r=>{vid.oncanplay=r;vid.onloadeddata=r;setTimeout(r,5000);vid.play().catch(()=>{})});
     cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
     aFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     aFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
     aFaceMesh.onResults(onAnalysisResults);
-    aCamera=new Camera(vid,{onFrame:async()=>{await aFaceMesh.send({image:vid})},width:cvs.width,height:cvs.height});
-    await aCamera.start();
+    if(aFaceMesh.initialize)await aFaceMesh.initialize();
     document.getElementById('aLoading').classList.add('hidden');
+    aRunA=true;
+    (function aLoop(){if(!aRunA)return;aFaceMesh.send({image:vid}).catch(()=>{}).then(()=>{if(aRunA)requestAnimationFrame(aLoop)})})();
   }catch(e){
     document.getElementById('aLoading').classList.add('hidden');
     document.getElementById('aPerm').classList.add('show');
@@ -511,7 +504,7 @@ function retryAnalysis(){
   aStarted=false;startAnalysis();
 }
 function stopAnalysis(){
-  try{aCamera&&aCamera.stop()}catch(e){}
+  aRunA=false;
   try{aStream&&aStream.getTracks().forEach(t=>t.stop())}catch(e){}
   aStarted=false;aDone=false;aCount=0;aBuf=[];
 }
@@ -748,7 +741,7 @@ function smoothT(r){
 }
 
 // ═══════════ SCREEN 5 — AR TRY-ON ═══════════
-let tFaceMesh,tCamera,tStream,tStarted=false;
+let tFaceMesh,tStream,tStarted=false,tRunT=false;
 let fImgs={};
 
 async function startTryon(focusId){
@@ -773,23 +766,16 @@ async function startTryon(focusId){
     const vid=document.getElementById('tryonVideo');
     const cvs=document.getElementById('tryonCanvas');
     vid.srcObject=tStream;
-    try{await vid.play()}catch(e){}
-    await new Promise(r=>{
-      if(vid.videoWidth>0)return r();
-      const go=()=>{if(vid.videoWidth>0)r()};
-      vid.addEventListener('loadedmetadata',go,{once:true});
-      vid.addEventListener('loadeddata',go,{once:true});
-      vid.addEventListener('canplay',go,{once:true});
-      setTimeout(r,5000);
-    });
+    await new Promise(r=>{vid.oncanplay=r;vid.onloadeddata=r;setTimeout(r,5000);vid.play().catch(()=>{})});
     cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     tFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
     tFaceMesh.onResults(onTryonResults);
-    tCamera=new Camera(vid,{onFrame:async()=>{await tFaceMesh.send({image:vid})},width:cvs.width,height:cvs.height});
-    await tCamera.start();
+    if(tFaceMesh.initialize)await tFaceMesh.initialize();
     document.getElementById('tLoading').classList.add('hidden');
     scrollToActive();
+    tRunT=true;
+    (function tLoop(){if(!tRunT)return;tFaceMesh.send({image:vid}).catch(()=>{}).then(()=>{if(tRunT)requestAnimationFrame(tLoop)})})();
   }catch(e){
     document.getElementById('tLoading').classList.add('hidden');
     document.getElementById('tPerm').classList.add('show');
