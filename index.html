@@ -46,8 +46,8 @@ html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-fam
 
 /* SCREEN 2 — ANALYSIS */
 #screenAnalysis{background:#000;position:relative;overflow:hidden}
-#analysisVideo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
-#analysisCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#analysisVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);pointer-events:none}
+#analysisCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:transparent}
 
 /* The face oval tracks the actual face via JS */
 #faceGuideOval{
@@ -174,8 +174,8 @@ html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-fam
 
 /* SCREEN 5 — TRY-ON */
 #screenTryon{background:#000;position:relative;overflow:hidden}
-#tryonVideo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
-#tryonCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#tryonVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);pointer-events:none}
+#tryonCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:transparent}
 .tryon-topbar{
   position:absolute;top:0;left:0;right:0;z-index:5;
   display:flex;align-items:center;justify-content:space-between;
@@ -534,7 +534,6 @@ function onAnalysisResults(results){
   const ctx=cvs.getContext('2d');
   const W=cvs.width,H=cvs.height;
   ctx.clearRect(0,0,W,H);
-  ctx.drawImage(vid,0,0,W,H);
 
   const oval=document.getElementById('faceGuideOval');
   const brackets=document.getElementById('guideBrackets');
@@ -812,7 +811,6 @@ function onTryonResults(results){
   const ctx=cvs.getContext('2d');
   const W=cvs.width,H=cvs.height;
   ctx.clearRect(0,0,W,H);
-  ctx.drawImage(vid,0,0,W,H);
   if(results.multiFaceLandmarks&&results.multiFaceLandmarks.length){
     document.getElementById('tdot').classList.add('on');
     document.getElementById('ttrack').textContent='Tracking';
