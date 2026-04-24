@@ -480,12 +480,13 @@ async function startAnalysis(){
   if(aStarted)return;
   aStarted=true;aDone=false;aCount=0;aBuf=[];
   try{
-    aStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:false});
+    aStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
     const vid=document.getElementById('analysisVideo');
     const cvs=document.getElementById('analysisCanvas');
     vid.srcObject=aStream;
-    await new Promise(r=>{vid.oncanplay=r;vid.onloadeddata=r;setTimeout(r,5000);vid.play().catch(()=>{})});
-    cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
+    vid.play().catch(()=>{});
+    cvs.width=window.innerWidth;cvs.height=window.innerHeight;
+    vid.onloadedmetadata=()=>{cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight};
     document.getElementById('aLoading').classList.add('hidden');
     aFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     aFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
@@ -761,12 +762,13 @@ async function startTryon(focusId){
   tStarted=true;
 
   try{
-    tStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:false});
+    tStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
     const vid=document.getElementById('tryonVideo');
     const cvs=document.getElementById('tryonCanvas');
     vid.srcObject=tStream;
-    await new Promise(r=>{vid.oncanplay=r;vid.onloadeddata=r;setTimeout(r,5000);vid.play().catch(()=>{})});
-    cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight;
+    vid.play().catch(()=>{});
+    cvs.width=window.innerWidth;cvs.height=window.innerHeight;
+    vid.onloadedmetadata=()=>{cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight};
     document.getElementById('tLoading').classList.add('hidden');
     scrollToActive();
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
