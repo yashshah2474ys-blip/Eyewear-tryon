@@ -873,7 +873,7 @@ function buildFrame3D(frameData){
   const BW=dims.bridgeWidth||18;
   const TL=dims.templeLength||145;
   const LCX=(LW+BW)/2;
-  const LH_base=LW*(F.LH/F.LW);
+  const LH_base=dims.lensHeightMm?dims.lensHeightMm:LW*(F.LH/F.LW);
   const hw=LW/2,hh=(LH_base*lhS)/2;
   const group=new THREE.Group();
   const fMat=makeFrameMat(fc,mat);
@@ -977,10 +977,16 @@ function drawOverlay3D(lm,W,H){
   const lEx=lE.x*W,lEy=lE.y*H,rEx=rE.x*W,rEy=rE.y*H;
   const ecX=(lEx+rEx)*0.5,ecY=(lEy+rEy)*0.5;
   const pose=headPose(lm,W,H);
-  // Scale: eye-corner pixel distance / frame IPD in mm → sc converts mm model units to screen px
+  // Scale: iris-to-iris pixel distance / frame IPD → sc converts mm model units to screen px
   // frameLCX*2 = full inter-lens-center distance (lens_width + bridge_width)
-  const eyeD=Math.hypot(rEx-lEx,rEy-lEy);
-  const sc=(eyeD/(frameLCX*2))*CAL.scaleMultiplier;
+  let pdPx;
+  if(lm.length>=478){
+    const liX=lm[468].x*W,liY=lm[468].y*H,riX=lm[473].x*W,riY=lm[473].y*H;
+    pdPx=Math.hypot(riX-liX,riY-liY);
+  }else{
+    pdPx=Math.hypot(rEx-lEx,rEy-lEy)*2.0;
+  }
+  const sc=(pdPx/(frameLCX*2))*CAL.scaleMultiplier;
   // Calibration offsets rotate with head roll (same as 2D system)
   const ang=-pose.roll;
   const ox=CAL.xOffset*Math.cos(ang)-CAL.yOffset*Math.sin(ang);
