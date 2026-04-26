@@ -179,6 +179,7 @@ html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-fam
 #threeCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)}
 #tryonCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1);background:transparent}
 #pdDisplay{position:absolute;bottom:130px;left:50%;transform:translateX(-50%);z-index:5;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);border:1px solid rgba(126,184,164,0.3);color:#7eb8a4;padding:5px 18px;border-radius:20px;font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;display:none;white-space:nowrap}
+#fitDisplay{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);z-index:5;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);border:1px solid rgba(126,184,164,0.2);color:#ccc;padding:4px 14px;border-radius:20px;font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.07em;display:none;white-space:nowrap}
 .tryon-topbar{
   position:absolute;top:0;left:0;right:0;z-index:5;
   display:flex;align-items:center;justify-content:space-between;
@@ -379,17 +380,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <span id="ttrack">Searching...</span>
   </div>
   <div id="pdDisplay">PD: — mm</div>
+  <div id="fitDisplay"></div>
   <button class="calib-toggle-btn" id="calibToggleBtn" onclick="toggleCalib()">⚙ ADJUST</button>
   <button class="calib-toggle-btn" id="debugToggleBtn" onclick="toggleDebug()" style="left:14px;right:auto;top:108px;">⬡ DEBUG</button>
   <div class="calib-panel" id="calibPanel">
     <div class="cp-title">Frame Alignment</div>
     <div class="cp-row">
-      <div class="cp-lrow"><span class="cp-lbl">SCALE</span><span class="cp-val" id="cvScale">1.15</span></div>
-      <input type="range" id="csScale" min="0.4" max="2.5" step="0.01" value="1.15" oninput="updateCalib('scaleMultiplier',this.value,'cvScale',v=>parseFloat(v).toFixed(2))">
+      <div class="cp-lrow"><span class="cp-lbl">SCALE</span><span class="cp-val" id="cvScale">1.00</span></div>
+      <input type="range" id="csScale" min="0.4" max="2.5" step="0.01" value="1.0" oninput="updateCalib('scaleMultiplier',this.value,'cvScale',v=>parseFloat(v).toFixed(2))">
     </div>
     <div class="cp-row">
-      <div class="cp-lrow"><span class="cp-lbl">Y OFFSET</span><span class="cp-val" id="cvY">-15</span></div>
-      <input type="range" id="csY" min="-100" max="100" step="1" value="-15" oninput="updateCalib('yOffset',this.value,'cvY',v=>parseFloat(v).toFixed(0))">
+      <div class="cp-lrow"><span class="cp-lbl">Y OFFSET</span><span class="cp-val" id="cvY">0</span></div>
+      <input type="range" id="csY" min="-100" max="100" step="1" value="0" oninput="updateCalib('yOffset',this.value,'cvY',v=>parseFloat(v).toFixed(0))">
     </div>
     <div class="cp-row">
       <div class="cp-lrow"><span class="cp-lbl">X OFFSET</span><span class="cp-val" id="cvX">0</span></div>
@@ -725,7 +727,7 @@ function tryOnFromDetail(){if(S.detailFrame)startTryon(S.detailFrame.id)}
 function viewDetail(){const f=S.stripFrames[S.currentIdx];if(f)openDetail(f.id,'screenTryon')}
 
 // ═══════════ CALIBRATION ═══════════
-const DCAL={scaleMultiplier:1.15,xOffset:0,yOffset:-15,rotationOffset:0,manualPD:0};
+const DCAL={scaleMultiplier:1.0,xOffset:0,yOffset:0,rotationOffset:0,manualPD:0};
 let CAL=(()=>{try{const s=localStorage.getItem('lensfit_calib');return s?{...DCAL,...JSON.parse(s)}:{...DCAL}}catch(e){return{...DCAL}}})();
 function saveCAL(){try{localStorage.setItem('lensfit_calib',JSON.stringify(CAL))}catch(e){}}
 function updateCalib(k,v,di,fmt){CAL[k]=parseFloat(v);document.getElementById(di).textContent=fmt(v);saveCAL()}
@@ -762,7 +764,7 @@ function smoothT(r){
 // ═══════════ THREE.JS 3D FRAME ENGINE ═══════════
 // Reference frame dimensions in world units (1 unit ≈ 1 CSS pixel at scale=1)
 // IPD=98 is the inter-lens-center distance used as the scale reference anchor.
-const F={LW:78,LH:62,LCX:49,IPD:98,BW:20,RR:3.5,TL:150};
+const F={LW:78,LH:62,LCX:49,IPD:98,BW:20,RR:1.8,TL:150};
 let threeR=null,threeS=null,threeC=null,threeF=null;
 let SM3D={x:null,y:null,sc:null,roll:null,yaw:null,pitch:null};
 let pdBuf=[];
@@ -862,8 +864,8 @@ function buildFrame3D(frameData){
   const dims=frameData.dimensions||{};
   const type=frameData.shape||'rectangle';
   const fc=p.frameColor||'#2a2a2a';
-  const lc=p.lensColor||'#0a0a0a';
-  const lo=p.lensOpacity!=null?p.lensOpacity:0.32;
+  const lc=p.lensColor||'#888888';
+  const lo=p.lensOpacity!=null?p.lensOpacity:0.12;
   const mat=p.material||'glossy';
   const rr=p.rimRadius!=null?p.rimRadius:F.RR;
   const lhS=p.lensHeight!=null?p.lensHeight:1.0;
@@ -933,6 +935,8 @@ function buildFrame3D(frameData){
     ));
   });
 
+  // Shift frame down so pupils land at 40% from lens top (not at geometric center)
+  group.position.y = -hh * 0.2;
   return group;
 }
 
@@ -1026,6 +1030,25 @@ function measurePD(lm,W,H){
   return Math.round(pdBuf.reduce((s,v)=>s+v,0)/pdBuf.length);
 }
 
+function measureFit(lm,W,H,frameData){
+  if(!lm||lm.length<478)return null;
+  const li=[468,469,470,471,472].map(i=>lm[i]);
+  const ri=[473,474,475,476,477].map(i=>lm[i]);
+  const avgRadPx=(irisRad(li,W,H)+irisRad(ri,W,H))/2;
+  if(avgRadPx<1)return null;
+  const pxMm=avgRadPx/5.85;
+  const fwPx=Math.hypot((lm[454].x-lm[234].x)*W,(lm[454].y-lm[234].y)*H);
+  const faceMm=Math.round(fwPx/pxMm);
+  const dims=frameData?.dimensions||{};
+  const frameMm=(dims.lensWidth||52)*2+(dims.bridgeWidth||18);
+  const diff=faceMm-frameMm;
+  let fit,col;
+  if(Math.abs(diff)<=12){fit='Perfect fit';col='#7eb8a4';}
+  else if(diff>12){fit='Frame too narrow';col='#e8a87c';}
+  else{fit='Frame too wide';col='#e8a87c';}
+  return{faceMm,frameMm,fit,col};
+}
+
 // ═══════════ SCREEN 5 — AR TRY-ON ═══════════
 let tFaceMesh,tStream,tStarted=false,tRunT=false;
 let fImgs={};
@@ -1105,12 +1128,21 @@ function onTryonResults(results){
     const pdEl=document.getElementById('pdDisplay');
     if(CAL.manualPD>0){
       pdEl.style.display='block';pdEl.textContent='PD: '+CAL.manualPD+' mm ✓';
-      measurePD(lm,W,H); // still run to keep pdBuf fresh
+      measurePD(lm,W,H);
     }else{
       const pd=measurePD(lm,W,H);
       if(pd){pdEl.style.display='block';pdEl.textContent='PD: '+pd+' mm'}
       else pdEl.style.display='none';
     }
+    // Face width fit indicator
+    const fitEl=document.getElementById('fitDisplay');
+    const fitData=measureFit(lm,W,H,f);
+    if(fitData){
+      fitEl.style.display='block';
+      fitEl.style.borderColor=fitData.col;
+      fitEl.style.color=fitData.col;
+      fitEl.textContent='Face '+fitData.faceMm+'mm · Frame '+fitData.frameMm+'mm · '+fitData.fit;
+    }else{fitEl.style.display='none';}
     if(DBG)drawDebug(ctx,lm,W,H);
   }else{
     SM={x:null,y:null,sc:null,rot:null};
@@ -1118,6 +1150,7 @@ function onTryonResults(results){
     document.getElementById('tdot').classList.remove('on');
     document.getElementById('ttrack').textContent='No face detected';
     document.getElementById('pdDisplay').style.display='none';
+    document.getElementById('fitDisplay').style.display='none';
     if(threeF)threeF.visible=false;
     if(threeR&&threeS&&threeC)threeR.render(threeS,threeC);
   }
