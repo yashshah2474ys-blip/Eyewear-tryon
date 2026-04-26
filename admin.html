@@ -442,6 +442,28 @@ body{padding-bottom:60px}
       </div>
     </div>
 
+    <!-- FRAME DIMENSIONS -->
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:18px">
+      <div class="form-title" style="margin-bottom:14px">Frame Dimensions</div>
+      <div style="font-size:10px;color:var(--accent2);margin-bottom:14px;line-height:1.7;padding:8px 12px;background:rgba(126,184,164,0.06);border:1px solid rgba(126,184,164,0.2);border-radius:8px">
+        Enter actual frame measurements in mm (printed inside the temple arm, e.g. 52□18-145). These ensure the 3D model matches the real frame size during try-on.
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Lens Width (mm)</label>
+          <input class="form-input" id="fDimLensW" type="number" value="52" min="30" max="70" step="0.5" placeholder="52">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bridge Width (mm)</label>
+          <input class="form-input" id="fDimBridgeW" type="number" value="18" min="10" max="30" step="0.5" placeholder="18">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Temple Length (mm)</label>
+          <input class="form-input" id="fDimTempleL" type="number" value="145" min="120" max="165" step="1" placeholder="145">
+        </div>
+      </div>
+    </div>
+
     <div style="margin-top:20px;display:flex;gap:10px">
       <button class="btn primary" onclick="saveFrame()" style="flex:1;padding:12px">SAVE FRAME</button>
       <button class="btn" onclick="clearForm()">CLEAR</button>
@@ -906,6 +928,9 @@ function clearForm() {
   document.getElementById('f3dLensHeight').value='1.0';
   document.getElementById('lensHeightVal').textContent='100%';
   document.getElementById('catEyeLiftGroup').style.display='none';
+  document.getElementById('fDimLensW').value='52';
+  document.getElementById('fDimBridgeW').value='18';
+  document.getElementById('fDimTempleL').value='145';
 }
 
 // ═══════════════════════════════════════════
@@ -933,6 +958,12 @@ async function saveFrame() {
     lensHeight: parseFloat(document.getElementById('f3dLensHeight').value),
   };
 
+  const dimensions = {
+    lensWidth: parseFloat(document.getElementById('fDimLensW').value) || 52,
+    bridgeWidth: parseFloat(document.getElementById('fDimBridgeW').value) || 18,
+    templeLength: parseFloat(document.getElementById('fDimTempleL').value) || 145,
+  };
+
   const frame = {
     id: 'frame_' + Date.now(),
     name,
@@ -947,6 +978,7 @@ async function saveFrame() {
     frontImage: photoData.front || null,
     sideImage: photoData.side || null,
     shape3d,
+    dimensions,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -1155,6 +1187,23 @@ async function openEditModal(id) {
         </div>
       </div>
     </div>
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px">Frame Dimensions</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Lens Width (mm)</label>
+          <input class="form-input" id="efDimLensW" type="number" value="${(frame.dimensions&&frame.dimensions.lensWidth)||52}" min="30" max="70" step="0.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bridge Width (mm)</label>
+          <input class="form-input" id="efDimBridgeW" type="number" value="${(frame.dimensions&&frame.dimensions.bridgeWidth)||18}" min="10" max="30" step="0.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Temple Length (mm)</label>
+          <input class="form-input" id="efDimTempleL" type="number" value="${(frame.dimensions&&frame.dimensions.templeLength)||145}" min="120" max="165" step="1">
+        </div>
+      </div>
+    </div>
     <div style="margin-top:20px;display:flex;gap:10px">
       <button class="btn primary" onclick="saveEditedFrame('${id}')" style="flex:1;padding:12px">SAVE CHANGES</button>
       <button class="btn" onclick="closeModal()">CANCEL</button>
@@ -1191,6 +1240,11 @@ async function saveEditedFrame(id) {
     rimRadius: frame.shape3d ? frame.shape3d.rimRadius : 3.5,
     catEyeLift: parseFloat(document.getElementById('ef3dCatLift').value),
     lensHeight: parseFloat(document.getElementById('ef3dLensHeight').value),
+  };
+  frame.dimensions = {
+    lensWidth: parseFloat(document.getElementById('efDimLensW').value) || 52,
+    bridgeWidth: parseFloat(document.getElementById('efDimBridgeW').value) || 18,
+    templeLength: parseFloat(document.getElementById('efDimTempleL').value) || 145,
   };
   frame.updatedAt = Date.now();
 
