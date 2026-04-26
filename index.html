@@ -769,11 +769,9 @@ let pdBuf=[];
 
 function initThreeJS(W,H){
   const el=document.getElementById('threeCanvas');
-  el.width=Math.round(W*Math.min(window.devicePixelRatio,2));
-  el.height=Math.round(H*Math.min(window.devicePixelRatio,2));
-  el.style.width=W+'px';el.style.height=H+'px';
   threeR=new THREE.WebGLRenderer({canvas:el,alpha:true,antialias:true,premultipliedAlpha:false});
-  threeR.setSize(W,H);threeR.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  // false = do NOT let Three.js override canvas CSS (inset:0;width:100%;height:100% handles it)
+  threeR.setSize(W,H,false);threeR.setPixelRatio(Math.min(window.devicePixelRatio,2));
   threeR.setClearColor(0x000000,0);
   threeS=new THREE.Scene();
   threeC=new THREE.OrthographicCamera(-W/2,W/2,H/2,-H/2,0.1,2000);
@@ -785,7 +783,7 @@ function initThreeJS(W,H){
 }
 function resizeThreeJS(W,H){
   if(!threeR||!threeC)return;
-  threeR.setSize(W,H);
+  threeR.setSize(W,H,false);
   threeC.left=-W/2;threeC.right=W/2;threeC.top=H/2;threeC.bottom=-H/2;
   threeC.updateProjectionMatrix();
 }
@@ -979,20 +977,10 @@ function drawOverlay3D(lm,W,H){
   const lEx=lE.x*W,lEy=lE.y*H,rEx=rE.x*W,rEy=rE.y*H;
   const ecX=(lEx+rEx)*0.5,ecY=(lEy+rEy)*0.5;
   const pose=headPose(lm,W,H);
-  // Scale: use iris landmarks for physically accurate sizing
-  // pxPerMm * frameLCX_mm gives the pixel position of each lens center
-  // The 3D model is built in mm, so sc = pxPerMm converts mm → pixels
-  let sc;
-  if(lm.length>=478){
-    const liX=lm[468].x*W,liY=lm[468].y*H,riX=lm[473].x*W,riY=lm[473].y*H;
-    const pdPx=Math.hypot(riX-liX,riY-liY);
-    const userPD=CAL.manualPD>0?CAL.manualPD:(pdBuf.length>0?pdBuf.reduce((s,v)=>s+v,0)/pdBuf.length:64);
-    sc=(pdPx/userPD)*CAL.scaleMultiplier;
-  }else{
-    // Fallback: eye corner distance / (frame IPD in mm)
-    const eyeD=Math.hypot(rEx-lEx,rEy-lEy);
-    sc=(eyeD/(frameLCX*2))*CAL.scaleMultiplier;
-  }
+  // Scale: eye-corner pixel distance / frame IPD in mm → sc converts mm model units to screen px
+  // frameLCX*2 = full inter-lens-center distance (lens_width + bridge_width)
+  const eyeD=Math.hypot(rEx-lEx,rEy-lEy);
+  const sc=(eyeD/(frameLCX*2))*CAL.scaleMultiplier;
   // Calibration offsets rotate with head roll (same as 2D system)
   const ang=-pose.roll;
   const ox=CAL.xOffset*Math.cos(ang)-CAL.yOffset*Math.sin(ang);
@@ -1063,16 +1051,13 @@ async function startTryon(focusId){
     cvs.width=initW;cvs.height=initH;
     // Initialize Three.js with screen dimensions immediately
     if(!threeR)initThreeJS(initW,initH);
-    vid.onloadedmetadata=()=>{
-      const vw=vid.videoWidth||initW,vh=vid.videoHeight||initH;
-      cvs.width=vw;cvs.height=vh;
-      resizeThreeJS(vw,vh);
-    };
+    // Canvases stay at screen dimensions — landmark coords are normalized 0-1
+    // so they work correctly regardless of video native resolution
     document.getElementById('tLoading').classList.add('hidden');
     scrollToActive();
-    // Build 3D frame for the currently selected frame (if it has shape3d params)
+    // Build 3D only for frames with no photo — photo frames always use 2D overlay
     const f0=S.stripFrames[S.currentIdx];
-    if(f0&&f0.shape3d&&threeS&&!threeF){threeF=buildFrame3D(f0);threeS.add(threeF)}
+    if(f0&&!f0.frontImage&&f0.shape3d&&threeS&&!threeF){threeF=buildFrame3D(f0);threeS.add(threeF)}
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     tFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
     tFaceMesh.onResults(onTryonResults);
@@ -1103,11 +1088,11 @@ function onTryonResults(results){
     document.getElementById('ttrack').textContent='Tracking';
     const lm=results.multiFaceLandmarks[0];
     const f=S.stripFrames[S.currentIdx];
-    // Use 3D if frame has shape3d params, else fall back to 2D overlay
-    if(f&&f.shape3d&&threeF){
+    // 3D only for frames with no photo. Photo frames always use 2D overlay — it IS the real frame.
+    if(f&&!f.frontImage&&f.shape3d&&threeF){
       drawOverlay3D(lm,W,H);
     }else{
-      if(threeF){threeF.visible=false;if(threeR&&threeS&&threeC)threeR.render(threeS,threeC)}
+      if(threeF){threeF.visible=false;if(threeR&&threeS&&threeC)threeR.render(threeS,threeC);}
       drawOverlay(ctx,lm,W,H);
     }
     // PD measurement (always attempt regardless of render mode)
@@ -1188,10 +1173,13 @@ function selectFrame(idx){
   SM={x:null,y:null,sc:null,rot:null};
   SM3D={x:null,y:null,sc:null,roll:null,yaw:null,pitch:null};
   pdBuf=[];
-  // Rebuild 3D frame for the newly selected frame
-  if(threeS&&threeF){disposeObj(threeF);threeS.remove(threeF);threeF=null}
   const f=S.stripFrames[idx];
-  if(f&&f.shape3d&&threeS){threeF=buildFrame3D(f);threeS.add(threeF)}
+  // Build new model BEFORE disposing old — prevents one-frame null gap in render loop
+  // Only build 3D for frames without a photo (photo frames always use 2D overlay)
+  const newF=(f&&!f.frontImage&&f.shape3d&&threeS)?buildFrame3D(f):null;
+  if(newF)threeS.add(newF);
+  if(threeF){disposeObj(threeF);threeS&&threeS.remove(threeF);}
+  threeF=newF;
   updateTopBar();scrollToActive();
 }
 function scrollToActive(){document.getElementById('si_'+S.currentIdx)?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
