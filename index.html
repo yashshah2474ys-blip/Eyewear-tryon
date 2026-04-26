@@ -919,14 +919,14 @@ function buildFrame3D(frameData){
     np.position.set(side*BW*0.3,-hh*0.14,rr*1.6);group.add(np);
   });
 
-  // Temples (arms curving backward from outer lens edges)
+  // Temples — go primarily in -Z (backward into depth), minimal X splay (~12mm), drop in Y to ear level
   [-1,1].forEach(side=>{
     const sx=side*(LCX+hw);
     const tPts=[
-      new THREE.Vector3(sx,0,0),
-      new THREE.Vector3(sx+side*TL*0.22,-hh*0.04,-TL*0.12),
-      new THREE.Vector3(sx+side*TL*0.6,-hh*0.14,-TL*0.52),
-      new THREE.Vector3(sx+side*TL,-hh*0.28,-TL*0.82),
+      new THREE.Vector3(sx, hh*0.4, 0),
+      new THREE.Vector3(sx+side*3, hh*0.2, -TL*0.22),
+      new THREE.Vector3(sx+side*8, -hh*0.4, -TL*0.60),
+      new THREE.Vector3(sx+side*12, -hh*1.2, -TL*0.90),
     ];
     group.add(new THREE.Mesh(
       new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tPts),28,rr*0.65,6,false),fMat
