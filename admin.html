@@ -384,6 +384,64 @@ body{padding-bottom:60px}
       </div>
     </div>
 
+    <!-- 3D FRAME LOOK -->
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:18px">
+      <div class="form-title" style="margin-bottom:14px">3D Frame Look</div>
+      <div style="font-size:10px;color:var(--accent2);margin-bottom:14px;line-height:1.7;padding:8px 12px;background:rgba(126,184,164,0.06);border:1px solid rgba(126,184,164,0.2);border-radius:8px">
+        Colors are auto-detected when you upload a front photo. Adjust if needed. These settings control how the frame appears in the 3D AR try-on.
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Frame Color</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="f3dFrameColor" value="#2a2a2a" style="width:46px;height:34px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;background:none;flex-shrink:0">
+            <input class="form-input" id="f3dFrameColorHex" value="#2a2a2a" style="flex:1;font-size:11px" placeholder="#2a2a2a">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lens Tint Color</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="f3dLensColor" value="#0a0a0a" style="width:46px;height:34px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;background:none;flex-shrink:0">
+            <input class="form-input" id="f3dLensColorHex" value="#0a0a0a" style="flex:1;font-size:11px" placeholder="#0a0a0a">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lens Opacity — <span id="lensOpacityVal">32%</span></label>
+          <input type="range" id="f3dLensOpacity" min="0" max="0.9" step="0.05" value="0.32"
+            oninput="document.getElementById('lensOpacityVal').textContent=Math.round(this.value*100)+'%'"
+            style="-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;width:100%;margin-top:8px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Frame Material</label>
+          <select class="form-input form-select" id="f3dMaterial">
+            <option value="glossy">Glossy Plastic</option>
+            <option value="matte">Matte Plastic</option>
+            <option value="metal">Metal</option>
+            <option value="titanium">Titanium</option>
+            <option value="wood">Wood</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rim Thickness — <span id="rimThicknessVal">Medium</span></label>
+          <input type="range" id="f3dRimRadius" min="1.5" max="6" step="0.5" value="3.5"
+            oninput="document.getElementById('rimThicknessVal').textContent=['Thin','Thin+','Medium','Medium+','Thick','Thick+','Extra'][Math.round((this.value-1.5)/0.5)]||''"
+            style="-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;width:100%;margin-top:8px">
+        </div>
+        <div class="form-group" id="catEyeLiftGroup" style="display:none">
+          <label class="form-label">Cat-Eye Lift — <span id="catLiftVal">40%</span></label>
+          <input type="range" id="f3dCatLift" min="0" max="1" step="0.05" value="0.4"
+            oninput="document.getElementById('catLiftVal').textContent=Math.round(this.value*100)+'%'"
+            style="-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;width:100%;margin-top:8px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lens Height Scale — <span id="lensHeightVal">100%</span></label>
+          <input type="range" id="f3dLensHeight" min="0.65" max="1.4" step="0.05" value="1.0"
+            oninput="document.getElementById('lensHeightVal').textContent=Math.round(this.value*100)+'%'"
+            style="-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;width:100%;margin-top:8px">
+        </div>
+      </div>
+    </div>
+
     <div style="margin-top:20px;display:flex;gap:10px">
       <button class="btn primary" onclick="saveFrame()" style="flex:1;padding:12px">SAVE FRAME</button>
       <button class="btn" onclick="clearForm()">CLEAR</button>
@@ -462,6 +520,50 @@ body{padding-bottom:60px}
 
 <script>
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+
+// ─── COLOR SYNC (color picker ↔ hex text input) ───
+function syncColorFromHex(pickerId,hexId){
+  const hex=document.getElementById(hexId).value.trim();
+  if(/^#[0-9a-fA-F]{6}$/.test(hex))document.getElementById(pickerId).value=hex;
+}
+function initColorSync(){
+  ['f3dFrameColor','f3dLensColor'].forEach(pid=>{
+    const hid=pid+'Hex';
+    document.getElementById(pid).addEventListener('input',function(){document.getElementById(hid).value=this.value});
+    document.getElementById(hid).addEventListener('input',function(){syncColorFromHex(pid,hid)});
+  });
+  // Show cat-eye lift slider only when cat-eye shape is selected
+  document.getElementById('fShape').addEventListener('change',function(){
+    document.getElementById('catEyeLiftGroup').style.display=this.value==='cat-eye'?'block':'none';
+  });
+}
+
+// ─── AUTO-DETECT FRAME COLOR FROM PROCESSED PHOTO ───
+function analyzeFramePhoto(src,callback){
+  const img=new Image();
+  img.onload=()=>{
+    const scale=Math.min(1,180/Math.max(img.naturalWidth,img.naturalHeight));
+    const c=document.createElement('canvas');
+    c.width=Math.round(img.naturalWidth*scale);c.height=Math.round(img.naturalHeight*scale);
+    const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
+    const d=ctx.getImageData(0,0,c.width,c.height).data;
+    // Build histogram over non-transparent, non-near-white pixels
+    const hist={};
+    for(let i=0;i<d.length;i+=4){
+      if(d[i+3]<80)continue;
+      const r=d[i],g=d[i+1],b=d[i+2];
+      if((r+g+b)/3>220)continue; // skip near-white background
+      const key=(r>>5)+','+(g>>5)+','+(b>>5); // quantize to 32-step bins
+      hist[key]=(hist[key]||0)+1;
+    }
+    let maxC=0,best='1,1,1';
+    for(const[k,v]of Object.entries(hist)){if(v>maxC){maxC=v;best=k}}
+    const[rb,gb,bb]=best.split(',').map(n=>Math.min(255,parseInt(n)*32+16));
+    callback('#'+[rb,gb,bb].map(v=>v.toString(16).padStart(2,'0')).join(''));
+  };
+  img.onerror=()=>callback('#2a2a2a');
+  img.src=src;
+}
 
 // ═══════════════════════════════════════════
 //  INDEXEDDB SETUP
@@ -578,6 +680,13 @@ async function handlePhoto(type, input) {
     zone.classList.add('has-image');
     badge.style.display = 'block';
     showToast(`${type === 'front' ? 'Front' : 'Side'} photo processed`, 'success');
+    // Auto-detect frame color from the processed (bg-removed) front photo
+    if(type==='front'){
+      analyzeFramePhoto(processed,hex=>{
+        document.getElementById('f3dFrameColor').value=hex;
+        document.getElementById('f3dFrameColorHex').value=hex;
+      });
+    }
   } catch (e) {
     showToast('Image processing failed: ' + e.message, 'error');
   } finally {
@@ -782,6 +891,21 @@ function clearForm() {
   removePhoto('front', { stopPropagation: ()=>{} });
   removePhoto('side', { stopPropagation: ()=>{} });
   photoData = { front: null, side: null };
+  // Reset 3D params to defaults
+  document.getElementById('f3dFrameColor').value='#2a2a2a';
+  document.getElementById('f3dFrameColorHex').value='#2a2a2a';
+  document.getElementById('f3dLensColor').value='#0a0a0a';
+  document.getElementById('f3dLensColorHex').value='#0a0a0a';
+  document.getElementById('f3dLensOpacity').value='0.32';
+  document.getElementById('lensOpacityVal').textContent='32%';
+  document.getElementById('f3dMaterial').value='glossy';
+  document.getElementById('f3dRimRadius').value='3.5';
+  document.getElementById('rimThicknessVal').textContent='Medium';
+  document.getElementById('f3dCatLift').value='0.4';
+  document.getElementById('catLiftVal').textContent='40%';
+  document.getElementById('f3dLensHeight').value='1.0';
+  document.getElementById('lensHeightVal').textContent='100%';
+  document.getElementById('catEyeLiftGroup').style.display='none';
 }
 
 // ═══════════════════════════════════════════
@@ -797,7 +921,17 @@ async function saveFrame() {
   if (!gender) { showToast('Please select gender', 'error'); return; }
   if (!type) { showToast('Please select frame type', 'error'); return; }
   if (!shape) { showToast('Please select frame shape', 'error'); return; }
-  if (!photoData.front) { showToast('Front photo is required', 'error'); return; }
+  // Front photo is optional if 3D params are present (shape3d allows AR without a photo)
+
+  const shape3d = {
+    frameColor: document.getElementById('f3dFrameColor').value,
+    lensColor: document.getElementById('f3dLensColor').value,
+    lensOpacity: parseFloat(document.getElementById('f3dLensOpacity').value),
+    material: document.getElementById('f3dMaterial').value,
+    rimRadius: parseFloat(document.getElementById('f3dRimRadius').value),
+    catEyeLift: parseFloat(document.getElementById('f3dCatLift').value),
+    lensHeight: parseFloat(document.getElementById('f3dLensHeight').value),
+  };
 
   const frame = {
     id: 'frame_' + Date.now(),
@@ -810,8 +944,9 @@ async function saveFrame() {
     color: document.getElementById('fColor').value.trim(),
     occasions: getChecked('occasionGroup'),
     faceShapes: getChecked('faceShapeGroup'),
-    frontImage: photoData.front,
+    frontImage: photoData.front || null,
     sideImage: photoData.side || null,
+    shape3d,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -879,6 +1014,7 @@ function renderInventory(frames) {
           <span class="meta-tag">${esc(f.gender || '—')}</span>
           <span class="meta-tag">${esc(f.shape || '—')}</span>
           ${f.size ? `<span class="meta-tag">${esc(f.size)}</span>` : ''}
+          ${f.shape3d ? `<span class="meta-tag" style="border-color:rgba(126,184,164,0.4);color:var(--accent2)">3D</span>` : ''}
         </div>
         <div class="frame-card-actions">
           <button class="card-btn" onclick="openEditModal('${esc(f.id)}')">EDIT</button>
@@ -976,11 +1112,60 @@ async function openEditModal(id) {
           </label>`).join('')}
       </div>
     </div>
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px">3D Frame Look</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Frame Color</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="ef3dFrameColor" value="${esc((frame.shape3d&&frame.shape3d.frameColor)||'#2a2a2a')}" style="width:46px;height:34px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;background:none;flex-shrink:0">
+            <input class="form-input" id="ef3dFrameColorHex" value="${esc((frame.shape3d&&frame.shape3d.frameColor)||'#2a2a2a')}" style="flex:1;font-size:11px">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lens Tint Color</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="ef3dLensColor" value="${esc((frame.shape3d&&frame.shape3d.lensColor)||'#0a0a0a')}" style="width:46px;height:34px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;background:none;flex-shrink:0">
+            <input class="form-input" id="ef3dLensColorHex" value="${esc((frame.shape3d&&frame.shape3d.lensColor)||'#0a0a0a')}" style="flex:1;font-size:11px">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lens Opacity — <span id="elensOpVal">${Math.round(((frame.shape3d&&frame.shape3d.lensOpacity)||0.32)*100)}%</span></label>
+          <input type="range" id="ef3dLensOpacity" min="0" max="0.9" step="0.05" value="${(frame.shape3d&&frame.shape3d.lensOpacity)||0.32}"
+            oninput="document.getElementById('elensOpVal').textContent=Math.round(this.value*100)+'%'"
+            style="-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;width:100%;margin-top:8px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Frame Material</label>
+          <select class="form-input form-select" id="ef3dMaterial">
+            ${['glossy','matte','metal','titanium','wood'].map(v=>`<option value="${v}" ${(frame.shape3d&&frame.shape3d.material)===v?'selected':''}>${v==='glossy'?'Glossy Plastic':v==='matte'?'Matte Plastic':v.charAt(0).toUpperCase()+v.slice(1)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cat-Eye Lift — <span id="ecatLiftVal">${Math.round(((frame.shape3d&&frame.shape3d.catEyeLift)||0.4)*100)}%</span></label>
+          <input type="range" id="ef3dCatLift" min="0" max="1" step="0.05" value="${(frame.shape3d&&frame.shape3d.catEyeLift)||0.4}"
+            oninput="document.getElementById('ecatLiftVal').textContent=Math.round(this.value*100)+'%'"
+            style="-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;width:100%;margin-top:8px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lens Height — <span id="elensHtVal">${Math.round(((frame.shape3d&&frame.shape3d.lensHeight)||1.0)*100)}%</span></label>
+          <input type="range" id="ef3dLensHeight" min="0.65" max="1.4" step="0.05" value="${(frame.shape3d&&frame.shape3d.lensHeight)||1.0}"
+            oninput="document.getElementById('elensHtVal').textContent=Math.round(this.value*100)+'%'"
+            style="-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;width:100%;margin-top:8px">
+        </div>
+      </div>
+    </div>
     <div style="margin-top:20px;display:flex;gap:10px">
       <button class="btn primary" onclick="saveEditedFrame('${id}')" style="flex:1;padding:12px">SAVE CHANGES</button>
       <button class="btn" onclick="closeModal()">CANCEL</button>
     </div>
   `;
+  // Sync color pickers in modal
+  ['ef3dFrameColor','ef3dLensColor'].forEach(pid=>{
+    const hid=pid+'Hex';
+    document.getElementById(pid).addEventListener('input',function(){document.getElementById(hid).value=this.value});
+    document.getElementById(hid).addEventListener('input',function(){const h=this.value.trim();if(/^#[0-9a-fA-F]{6}$/.test(h))document.getElementById(pid).value=h});
+  });
   document.getElementById('editModal').classList.add('show');
 }
 
@@ -998,6 +1183,15 @@ async function saveEditedFrame(id) {
   frame.color = document.getElementById('efColor').value.trim();
   frame.occasions = getChecked('eOccasionGroup');
   frame.faceShapes = getChecked('eFaceShapeGroup');
+  frame.shape3d = {
+    frameColor: document.getElementById('ef3dFrameColor').value,
+    lensColor: document.getElementById('ef3dLensColor').value,
+    lensOpacity: parseFloat(document.getElementById('ef3dLensOpacity').value),
+    material: document.getElementById('ef3dMaterial').value,
+    rimRadius: frame.shape3d ? frame.shape3d.rimRadius : 3.5,
+    catEyeLift: parseFloat(document.getElementById('ef3dCatLift').value),
+    lensHeight: parseFloat(document.getElementById('ef3dLensHeight').value),
+  };
   frame.updatedAt = Date.now();
 
   await dbPut(frame);
@@ -1098,6 +1292,7 @@ document.getElementById('editModal').addEventListener('click', function(e) {
 openDB().then(() => {
   loadInventory();
   loadSettingsUI();
+  initColorSync();
 }).catch(e => {
   showToast('Database error: ' + e.message, 'error');
 });

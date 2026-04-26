@@ -6,6 +6,7 @@
 <title>LENSFIT — Try On</title>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -175,7 +176,9 @@ html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-fam
 /* SCREEN 5 — TRY-ON */
 #screenTryon{background:#000;overflow:hidden}
 #tryonVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);pointer-events:none}
-#tryonCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:transparent}
+#threeCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)}
+#tryonCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1);background:transparent}
+#pdDisplay{position:absolute;bottom:130px;left:50%;transform:translateX(-50%);z-index:5;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);border:1px solid rgba(126,184,164,0.3);color:#7eb8a4;padding:5px 18px;border-radius:20px;font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;display:none;white-space:nowrap}
 .tryon-topbar{
   position:absolute;top:0;left:0;right:0;z-index:5;
   display:flex;align-items:center;justify-content:space-between;
@@ -364,6 +367,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 <!-- SCREEN 5: AR TRY-ON -->
 <div class="screen" id="screenTryon">
   <video id="tryonVideo" autoplay playsinline muted></video>
+  <canvas id="threeCanvas"></canvas>
   <canvas id="tryonCanvas"></canvas>
   <div class="tryon-topbar">
     <button class="t-back" onclick="goBack()">← Back</button>
@@ -374,6 +378,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <div class="tdot" id="tdot"></div>
     <span id="ttrack">Searching...</span>
   </div>
+  <div id="pdDisplay">PD: — mm</div>
   <button class="calib-toggle-btn" id="calibToggleBtn" onclick="toggleCalib()">⚙ ADJUST</button>
   <button class="calib-toggle-btn" id="debugToggleBtn" onclick="toggleDebug()" style="left:14px;right:auto;top:108px;">⬡ DEBUG</button>
   <div class="calib-panel" id="calibPanel">
@@ -462,7 +467,16 @@ const S={
 
 // ═══════════ NAVIGATION ═══════════
 function goToScreen(id){
-  S.prevScreen=document.querySelector('.screen.active')?.id||null;
+  const cur=document.querySelector('.screen.active')?.id||null;
+  // Stop try-on camera + 3D when leaving for any screen except the detail info panel
+  if(cur==='screenTryon'&&id!=='screenTryon'&&id!=='screenDetail'){
+    tRunT=false;
+    try{tStream&&tStream.getTracks().forEach(t=>t.stop())}catch(e){}
+    tStarted=false;
+    cleanupThreeJS();
+    document.getElementById('pdDisplay').style.display='none';
+  }
+  S.prevScreen=cur;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
@@ -740,6 +754,255 @@ function smoothT(r){
   return{x:SM.x,y:SM.y,sc:SM.sc,rot:SM.rot};
 }
 
+// ═══════════ THREE.JS 3D FRAME ENGINE ═══════════
+// Reference frame dimensions in world units (1 unit ≈ 1 CSS pixel at scale=1)
+// IPD=98 is the inter-lens-center distance used as the scale reference anchor.
+const F={LW:78,LH:62,LCX:49,IPD:98,BW:20,RR:3.5,TL:150};
+let threeR=null,threeS=null,threeC=null,threeF=null;
+let SM3D={x:null,y:null,sc:null,roll:null,yaw:null,pitch:null};
+let pdBuf=[];
+
+function initThreeJS(W,H){
+  const el=document.getElementById('threeCanvas');
+  el.width=Math.round(W*Math.min(window.devicePixelRatio,2));
+  el.height=Math.round(H*Math.min(window.devicePixelRatio,2));
+  el.style.width=W+'px';el.style.height=H+'px';
+  threeR=new THREE.WebGLRenderer({canvas:el,alpha:true,antialias:true,premultipliedAlpha:false});
+  threeR.setSize(W,H);threeR.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  threeR.setClearColor(0x000000,0);
+  threeS=new THREE.Scene();
+  threeC=new THREE.OrthographicCamera(-W/2,W/2,H/2,-H/2,0.1,2000);
+  threeC.position.z=1000;
+  threeS.add(new THREE.AmbientLight(0xffffff,0.55));
+  const dl=new THREE.DirectionalLight(0xffffff,0.85);dl.position.set(0.4,1,1).normalize();threeS.add(dl);
+  const fl=new THREE.DirectionalLight(0xffffff,0.35);fl.position.set(-1,-0.3,0.5).normalize();threeS.add(fl);
+  const rl=new THREE.DirectionalLight(0xffffff,0.2);rl.position.set(0,-1,0.5).normalize();threeS.add(rl);
+}
+function resizeThreeJS(W,H){
+  if(!threeR||!threeC)return;
+  threeR.setSize(W,H);
+  threeC.left=-W/2;threeC.right=W/2;threeC.top=H/2;threeC.bottom=-H/2;
+  threeC.updateProjectionMatrix();
+}
+function cleanupThreeJS(){
+  if(threeF){disposeObj(threeF);threeS&&threeS.remove(threeF);threeF=null}
+  if(threeR){threeR.dispose();threeR=null}
+  threeS=null;threeC=null;
+  SM3D={x:null,y:null,sc:null,roll:null,yaw:null,pitch:null};
+  pdBuf=[];
+}
+function disposeObj(obj){
+  obj.traverse(o=>{
+    if(o.geometry)o.geometry.dispose();
+    if(o.material){Array.isArray(o.material)?o.material.forEach(m=>m.dispose()):o.material.dispose()}
+  });
+}
+
+// ─── LENS SHAPE GEOMETRY ───
+function makeLensShape(type,hw,hh,extra){
+  const s=new THREE.Shape();
+  switch(type){
+    case 'round':case 'oval':
+      s.absellipse(0,0,hw,hh,0,Math.PI*2,false,0);break;
+    case 'square':{const r=Math.min(hw,hh)*0.17;rrect(s,hw,hh,r);break}
+    case 'rectangle':case 'wayfarer':{const r=Math.min(hw,hh)*0.12;rrect(s,hw,hh,r);break}
+    case 'aviator':
+      s.moveTo(-hw,hh*0.18);
+      s.bezierCurveTo(-hw*0.85,hh*0.52,hw*0.85,hh*0.52,hw,hh*0.18);
+      s.bezierCurveTo(hw*1.06,-hh*0.28,hw*0.52,-hh,0,-hh);
+      s.bezierCurveTo(-hw*0.52,-hh,-hw*1.06,-hh*0.28,-hw,hh*0.18);
+      break;
+    case 'cat-eye':{
+      const lf=extra&&extra.catEyeLift!=null?extra.catEyeLift:0.4;
+      const oy2=hh*(0.22+lf*0.58);
+      s.moveTo(-hw,-hh*0.08);
+      s.bezierCurveTo(-hw*1.02,-hh*0.62,-hw*0.38,-hh,0,-hh*0.86);
+      s.bezierCurveTo(hw*0.38,-hh*0.62,hw*0.72,-hh*0.08,hw,oy2);
+      s.bezierCurveTo(hw*0.82,hh*0.88,-hw*0.18,hh,-hw,hh*0.28);
+      s.bezierCurveTo(-hw*1.06,hh*0.0,-hw,hh*0.0,-hw,-hh*0.08);
+      break;
+    }
+    case 'geometric':case 'hexagon':
+      for(let i=0;i<6;i++){
+        const a=(i/6)*Math.PI*2+Math.PI/6;
+        i===0?s.moveTo(Math.cos(a)*hw,Math.sin(a)*hh):s.lineTo(Math.cos(a)*hw,Math.sin(a)*hh);
+      }
+      s.closePath();break;
+    default:{const r=Math.min(hw,hh)*0.12;rrect(s,hw,hh,r);}
+  }
+  return s;
+}
+function rrect(s,hw,hh,r){
+  s.moveTo(-hw+r,-hh);s.lineTo(hw-r,-hh);s.quadraticCurveTo(hw,-hh,hw,-hh+r);
+  s.lineTo(hw,hh-r);s.quadraticCurveTo(hw,hh,hw-r,hh);
+  s.lineTo(-hw+r,hh);s.quadraticCurveTo(-hw,hh,-hw,hh-r);
+  s.lineTo(-hw,-hh+r);s.quadraticCurveTo(-hw,-hh,-hw+r,-hh);
+}
+
+// ─── FRAME MATERIAL ───
+function makeFrameMat(color,mat){
+  switch(mat){
+    case 'metal':case 'titanium':
+      return new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:0.22,metalness:0.88});
+    case 'wood':
+      return new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:0.82,metalness:0.0});
+    case 'matte':
+      return new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:0.72,metalness:0.0});
+    default:
+      return new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:0.14,metalness:0.06});
+  }
+}
+
+// ─── BUILD COMPLETE PARAMETRIC FRAME ───
+function buildFrame3D(frameData){
+  const p=frameData.shape3d||{};
+  const type=frameData.shape||'rectangle';
+  const fc=p.frameColor||'#2a2a2a';
+  const lc=p.lensColor||'#0a0a0a';
+  const lo=p.lensOpacity!=null?p.lensOpacity:0.32;
+  const mat=p.material||'glossy';
+  const rr=p.rimRadius!=null?p.rimRadius:F.RR;
+  const lhS=p.lensHeight!=null?p.lensHeight:1.0;
+  const cl=p.catEyeLift!=null?p.catEyeLift:0.4;
+  const hw=F.LW/2,hh=(F.LH*lhS)/2;
+  const group=new THREE.Group();
+  const fMat=makeFrameMat(fc,mat);
+  const lMat=new THREE.MeshStandardMaterial({
+    color:new THREE.Color(lc),transparent:true,opacity:lo,
+    side:THREE.DoubleSide,roughness:0.04,metalness:0.0,depthWrite:false
+  });
+
+  // Left (-1) and Right (+1) lens + rim
+  [-1,1].forEach(side=>{
+    const cx=side*F.LCX;
+    const shape=makeLensShape(type,hw,hh,{catEyeLift:cl});
+    // Transparent lens face
+    const lens=new THREE.Mesh(new THREE.ShapeGeometry(shape,32),lMat);
+    lens.position.set(cx,0,0);group.add(lens);
+    // Rim tube following the lens outline
+    const pts2D=shape.getSpacedPoints(80);
+    const lp=pts2D[pts2D.length-1],fp=pts2D[0];
+    if(Math.abs(lp.x-fp.x)<0.5&&Math.abs(lp.y-fp.y)<0.5)pts2D.pop();
+    const pts3D=pts2D.map(q=>new THREE.Vector3(q.x+cx,q.y,0));
+    const rimTube=new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3(pts3D,true,'catmullrom',0.5),
+      pts3D.length*2,rr,8,true
+    );
+    group.add(new THREE.Mesh(rimTube,fMat));
+  });
+
+  // Bridge (arc connecting inner rim edges)
+  const bPts=[
+    new THREE.Vector3(-F.LCX+hw*0.9,0,0),
+    new THREE.Vector3(-F.BW*0.22,-hh*0.1,rr*0.6),
+    new THREE.Vector3(0,-hh*0.14,rr*0.9),
+    new THREE.Vector3(F.BW*0.22,-hh*0.1,rr*0.6),
+    new THREE.Vector3(F.LCX-hw*0.9,0,0),
+  ];
+  group.add(new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bPts),24,rr*0.7,6,false),fMat
+  ));
+
+  // Nose pads (small spheres)
+  [-1,1].forEach(side=>{
+    const np=new THREE.Mesh(new THREE.SphereGeometry(rr*0.85,7,7),fMat);
+    np.position.set(side*F.BW*0.3,-hh*0.14,rr*1.6);group.add(np);
+  });
+
+  // Temples (arms curving backward from outer lens edges)
+  [-1,1].forEach(side=>{
+    const sx=side*(F.LCX+hw);
+    const tPts=[
+      new THREE.Vector3(sx,0,0),
+      new THREE.Vector3(sx+side*F.TL*0.22,-hh*0.04,-F.TL*0.12),
+      new THREE.Vector3(sx+side*F.TL*0.6,-hh*0.14,-F.TL*0.52),
+      new THREE.Vector3(sx+side*F.TL,-hh*0.28,-F.TL*0.82),
+    ];
+    group.add(new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tPts),28,rr*0.65,6,false),fMat
+    ));
+  });
+
+  return group;
+}
+
+// ─── HEAD POSE ESTIMATION FROM FACE LANDMARKS ───
+function headPose(lm,W,H){
+  // Roll: negate canvas atan2 for Three.js Y-up + CSS scaleX(-1) combination
+  const roll=-Math.atan2((lm[263].y-lm[33].y)*H,(lm[263].x-lm[33].x)*W);
+  // Yaw: nose position between face edge landmarks; sign chosen for mirror view
+  const lx=Math.min(lm[234].x,lm[454].x),rx=Math.max(lm[234].x,lm[454].x);
+  const fw=rx-lx;
+  const nr=fw>0.01?(lm[1].x-lx)/fw:0.5;
+  const yaw=(0.5-nr)*Math.PI*0.78;
+  // Pitch: nose vertical proportion in forehead-to-chin range
+  const fh=lm[152].y-lm[10].y;
+  const np=fh>0.01?(lm[1].y-lm[10].y)/fh:0.46;
+  const pitch=(np-0.46)*Math.PI*0.62;
+  return{roll,yaw,pitch};
+}
+
+// ─── 3D SMOOTHING (extends existing 2D smoother) ───
+function smooth3D(r){
+  const L=(p,n)=>p===null?n:p+A*(n-p);
+  const La=(p,n)=>{
+    if(p===null)return n;
+    let d=n-p;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return p+A*d;
+  };
+  SM3D.x=L(SM3D.x,r.x);SM3D.y=L(SM3D.y,r.y);SM3D.sc=L(SM3D.sc,r.sc);
+  SM3D.roll=La(SM3D.roll,r.roll);SM3D.yaw=La(SM3D.yaw,r.yaw);SM3D.pitch=La(SM3D.pitch,r.pitch);
+  return SM3D;
+}
+
+// ─── 3D FRAME OVERLAY RENDER ───
+function drawOverlay3D(lm,W,H){
+  if(!threeR||!threeS||!threeC||!threeF)return;
+  threeF.visible=true;
+  const lE=lm[33],rE=lm[263];
+  const lEx=lE.x*W,lEy=lE.y*H,rEx=rE.x*W,rEy=rE.y*H;
+  const ecX=(lEx+rEx)*0.5,ecY=(lEy+rEy)*0.5;
+  const eyeD=Math.hypot(rEx-lEx,rEy-lEy);
+  const pose=headPose(lm,W,H);
+  const sc=(eyeD/F.IPD)*CAL.scaleMultiplier;
+  // Calibration offsets rotate with head roll (same as 2D system)
+  const ang=-pose.roll;
+  const ox=CAL.xOffset*Math.cos(ang)-CAL.yOffset*Math.sin(ang);
+  const oy=CAL.xOffset*Math.sin(ang)+CAL.yOffset*Math.cos(ang);
+  // Convert canvas screen coords to Three.js orthographic space (Y-up, origin=center)
+  const raw={
+    x:(ecX+ox)-W/2,
+    y:H/2-(ecY+oy),
+    sc,roll:pose.roll,yaw:pose.yaw,pitch:pose.pitch
+  };
+  const t=smooth3D(raw);
+  threeF.position.set(t.x,t.y,0);
+  threeF.scale.setScalar(t.sc);
+  threeF.setRotationFromEuler(new THREE.Euler(t.pitch,t.yaw,t.roll,'ZYX'));
+  threeR.render(threeS,threeC);
+}
+
+// ─── PD MEASUREMENT USING IRIS LANDMARKS ───
+// MediaPipe iris landmarks (refineLandmarks:true): 468=left center, 469-472=left ring,
+// 473=right center, 474-477=right ring. Human iris diameter=11.7mm (radius=5.85mm).
+function irisRad(pts,W,H){
+  const cx=pts[0].x*W,cy=pts[0].y*H;
+  let s=0;for(let i=1;i<pts.length;i++)s+=Math.hypot(pts[i].x*W-cx,pts[i].y*H-cy);
+  return s/(pts.length-1);
+}
+function measurePD(lm,W,H){
+  if(!lm||lm.length<478)return null;
+  const li=[468,469,470,471,472].map(i=>lm[i]);
+  const ri=[473,474,475,476,477].map(i=>lm[i]);
+  const liX=lm[468].x*W,liY=lm[468].y*H,riX=lm[473].x*W,riY=lm[473].y*H;
+  const avgRadPx=(irisRad(li,W,H)+irisRad(ri,W,H))/2;
+  if(avgRadPx<1)return null;
+  const pxMm=avgRadPx/5.85;
+  const pd=Math.hypot(riX-liX,riY-liY)/pxMm;
+  if(pd<42||pd>86)return null;
+  pdBuf.push(pd);if(pdBuf.length>10)pdBuf.shift();
+  return Math.round(pdBuf.reduce((s,v)=>s+v,0)/pdBuf.length);
+}
+
 // ═══════════ SCREEN 5 — AR TRY-ON ═══════════
 let tFaceMesh,tStream,tStarted=false,tRunT=false;
 let fImgs={};
@@ -767,10 +1030,20 @@ async function startTryon(focusId){
     const cvs=document.getElementById('tryonCanvas');
     vid.srcObject=tStream;
     vid.play().catch(()=>{});
-    cvs.width=window.innerWidth;cvs.height=window.innerHeight;
-    vid.onloadedmetadata=()=>{cvs.width=vid.videoWidth||window.innerWidth;cvs.height=vid.videoHeight||window.innerHeight};
+    const initW=window.innerWidth,initH=window.innerHeight;
+    cvs.width=initW;cvs.height=initH;
+    // Initialize Three.js with screen dimensions immediately
+    if(!threeR)initThreeJS(initW,initH);
+    vid.onloadedmetadata=()=>{
+      const vw=vid.videoWidth||initW,vh=vid.videoHeight||initH;
+      cvs.width=vw;cvs.height=vh;
+      resizeThreeJS(vw,vh);
+    };
     document.getElementById('tLoading').classList.add('hidden');
     scrollToActive();
+    // Build 3D frame for the currently selected frame (if it has shape3d params)
+    const f0=S.stripFrames[S.currentIdx];
+    if(f0&&f0.shape3d&&threeS&&!threeF){threeF=buildFrame3D(f0);threeS.add(threeF)}
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     tFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
     tFaceMesh.onResults(onTryonResults);
@@ -792,7 +1065,6 @@ function preloadImgs(frames){
 }
 
 function onTryonResults(results){
-  const vid=document.getElementById('tryonVideo');
   const cvs=document.getElementById('tryonCanvas');
   const ctx=cvs.getContext('2d');
   const W=cvs.width,H=cvs.height;
@@ -800,12 +1072,29 @@ function onTryonResults(results){
   if(results.multiFaceLandmarks&&results.multiFaceLandmarks.length){
     document.getElementById('tdot').classList.add('on');
     document.getElementById('ttrack').textContent='Tracking';
-    drawOverlay(ctx,results.multiFaceLandmarks[0],W,H);
-    if(DBG)drawDebug(ctx,results.multiFaceLandmarks[0],W,H);
+    const lm=results.multiFaceLandmarks[0];
+    const f=S.stripFrames[S.currentIdx];
+    // Use 3D if frame has shape3d params, else fall back to 2D overlay
+    if(f&&f.shape3d&&threeF){
+      drawOverlay3D(lm,W,H);
+    }else{
+      if(threeF){threeF.visible=false;if(threeR&&threeS&&threeC)threeR.render(threeS,threeC)}
+      drawOverlay(ctx,lm,W,H);
+    }
+    // PD measurement (always attempt regardless of render mode)
+    const pd=measurePD(lm,W,H);
+    const pdEl=document.getElementById('pdDisplay');
+    if(pd){pdEl.style.display='block';pdEl.textContent='PD: '+pd+' mm'}
+    else pdEl.style.display='none';
+    if(DBG)drawDebug(ctx,lm,W,H);
   }else{
     SM={x:null,y:null,sc:null,rot:null};
+    SM3D={x:null,y:null,sc:null,roll:null,yaw:null,pitch:null};
     document.getElementById('tdot').classList.remove('on');
     document.getElementById('ttrack').textContent='No face detected';
+    document.getElementById('pdDisplay').style.display='none';
+    if(threeF)threeF.visible=false;
+    if(threeR&&threeS&&threeC)threeR.render(threeS,threeC);
   }
 }
 
@@ -863,6 +1152,12 @@ function selectFrame(idx){
   S.currentIdx=idx;
   document.getElementById('si_'+idx)?.classList.add('active');
   SM={x:null,y:null,sc:null,rot:null};
+  SM3D={x:null,y:null,sc:null,roll:null,yaw:null,pitch:null};
+  pdBuf=[];
+  // Rebuild 3D frame for the newly selected frame
+  if(threeS&&threeF){disposeObj(threeF);threeS.remove(threeF);threeF=null}
+  const f=S.stripFrames[idx];
+  if(f&&f.shape3d&&threeS){threeF=buildFrame3D(f);threeS.add(threeF)}
   updateTopBar();scrollToActive();
 }
 function scrollToActive(){document.getElementById('si_'+S.currentIdx)?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
