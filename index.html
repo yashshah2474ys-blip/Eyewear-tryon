@@ -728,7 +728,9 @@ function viewDetail(){const f=S.stripFrames[S.currentIdx];if(f)openDetail(f.id,'
 
 // ═══════════ CALIBRATION ═══════════
 const DCAL={scaleMultiplier:1.0,xOffset:0,yOffset:0,rotationOffset:0,manualPD:0};
-let CAL=(()=>{try{const s=localStorage.getItem('lensfit_calib');return s?{...DCAL,...JSON.parse(s)}:{...DCAL}}catch(e){return{...DCAL}}})();
+const CAL_VER='v3';
+let CAL=(()=>{try{const s=localStorage.getItem('lensfit_calib');const ver=localStorage.getItem('lensfit_calib_ver');if(s&&ver===CAL_VER)return{...DCAL,...JSON.parse(s)};return{...DCAL}}catch(e){return{...DCAL}}})();
+localStorage.setItem('lensfit_calib_ver',CAL_VER);
 function saveCAL(){try{localStorage.setItem('lensfit_calib',JSON.stringify(CAL))}catch(e){}}
 function updateCalib(k,v,di,fmt){CAL[k]=parseFloat(v);document.getElementById(di).textContent=fmt(v);saveCAL()}
 function resetCalib(){CAL={...DCAL};saveCAL();syncSliders()}
@@ -776,7 +778,10 @@ function initThreeJS(W,H){
   threeR.setSize(W,H,false);threeR.setPixelRatio(Math.min(window.devicePixelRatio,2));
   threeR.setClearColor(0x000000,0);
   threeS=new THREE.Scene();
-  threeC=new THREE.OrthographicCamera(-W/2,W/2,H/2,-H/2,0.1,2000);
+  // PerspectiveCamera: FOV chosen so 1 Three.js unit = 1 CSS pixel at z=0 (frame plane)
+  // fov = 2*atan(H/2 / cameraZ) — maintains pixel-accurate scale while giving real depth/perspective
+  const fov=2*Math.atan(H/2/1000)*(180/Math.PI);
+  threeC=new THREE.PerspectiveCamera(fov,W/H,0.1,2000);
   threeC.position.z=1000;
   threeS.add(new THREE.AmbientLight(0xffffff,0.55));
   const dl=new THREE.DirectionalLight(0xffffff,0.85);dl.position.set(0.4,1,1).normalize();threeS.add(dl);
@@ -786,7 +791,8 @@ function initThreeJS(W,H){
 function resizeThreeJS(W,H){
   if(!threeR||!threeC)return;
   threeR.setSize(W,H,false);
-  threeC.left=-W/2;threeC.right=W/2;threeC.top=H/2;threeC.bottom=-H/2;
+  threeC.fov=2*Math.atan(H/2/1000)*(180/Math.PI);
+  threeC.aspect=W/H;
   threeC.updateProjectionMatrix();
 }
 function cleanupThreeJS(){
