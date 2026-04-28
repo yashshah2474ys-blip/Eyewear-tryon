@@ -960,6 +960,9 @@ function buildFrame3D(frameData){
   const fImg=(typeof fImgs!=='undefined'&&frameData.frontImage)?fImgs[frameData.id]:null;
   const hasPhoto=fImg&&fImg.complete&&fImg.naturalWidth>0;
 
+  // fMatPhoto declared here so it's in scope for temple build below
+  let fMatPhoto=fMat;
+
   if(hasPhoto){
     // ── PHOTO MODE ──────────────────────────────────────────────────────────
     // Front face = uploaded photo mapped on a flat plane. No rim tubes, no lens
@@ -969,7 +972,7 @@ function buildFrame3D(frameData){
     // Override frame material color by reading directly from the photo pixels —
     // avoids mismatches when admin auto-detection stored a wrong color.
     const photoColor=extractFrameColor(fImg);
-    const fMatPhoto=makeFrameMat(photoColor,mat);
+    fMatPhoto=makeFrameMat(photoColor,mat);
 
     const tex=makePhotoTexture(fImg);
     const pMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.FrontSide,depthWrite:false});
