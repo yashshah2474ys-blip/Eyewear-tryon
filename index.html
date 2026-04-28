@@ -774,19 +774,40 @@ let pdBuf=[];
 function initThreeJS(W,H){
   const el=document.getElementById('threeCanvas');
   threeR=new THREE.WebGLRenderer({canvas:el,alpha:true,antialias:true,premultipliedAlpha:false});
-  // false = do NOT let Three.js override canvas CSS (inset:0;width:100%;height:100% handles it)
   threeR.setSize(W,H,false);threeR.setPixelRatio(Math.min(window.devicePixelRatio,2));
   threeR.setClearColor(0x000000,0);
+  threeR.toneMapping=THREE.ACESFilmicToneMapping;
+  threeR.toneMappingExposure=1.0;
+  threeR.outputColorSpace=THREE.SRGBColorSpace;
   threeS=new THREE.Scene();
+  // Studio environment map — drives PBR reflections on glossy/metal materials
+  const ec=document.createElement('canvas');ec.width=512;ec.height=256;
+  const ex=ec.getContext('2d');
+  const ebg=ex.createLinearGradient(0,0,0,256);
+  ebg.addColorStop(0,'#f0f0f8');ebg.addColorStop(0.4,'#d8d8e4');ebg.addColorStop(0.6,'#c8c8d8');ebg.addColorStop(1,'#303040');
+  ex.fillStyle=ebg;ex.fillRect(0,0,512,256);
+  const ekl=ex.createRadialGradient(128,38,0,128,38,130);
+  ekl.addColorStop(0,'rgba(255,255,250,1)');ekl.addColorStop(0.4,'rgba(255,255,250,0.5)');ekl.addColorStop(1,'rgba(255,255,250,0)');
+  ex.fillStyle=ekl;ex.fillRect(0,0,512,256);
+  const efl=ex.createRadialGradient(400,64,0,400,64,96);
+  efl.addColorStop(0,'rgba(195,210,255,0.65)');efl.addColorStop(1,'rgba(195,210,255,0)');
+  ex.fillStyle=efl;ex.fillRect(0,0,512,256);
+  const erl=ex.createRadialGradient(256,13,0,256,13,80);
+  erl.addColorStop(0,'rgba(255,248,230,0.85)');erl.addColorStop(1,'rgba(255,248,230,0)');
+  ex.fillStyle=erl;ex.fillRect(0,0,512,256);
+  const eTex=new THREE.CanvasTexture(ec);eTex.mapping=THREE.EquirectangularReflectionMapping;
+  const pmrem=new THREE.PMREMGenerator(threeR);pmrem.compileEquirectangularShader();
+  threeS.environment=pmrem.fromEquirectangular(eTex).texture;
+  eTex.dispose();pmrem.dispose();
   // PerspectiveCamera: FOV chosen so 1 Three.js unit = 1 CSS pixel at z=0 (frame plane)
-  // fov = 2*atan(H/2 / cameraZ) — maintains pixel-accurate scale while giving real depth/perspective
   const fov=2*Math.atan(H/2/1000)*(180/Math.PI);
   threeC=new THREE.PerspectiveCamera(fov,W/H,0.1,2000);
   threeC.position.z=1000;
-  threeS.add(new THREE.AmbientLight(0xffffff,0.55));
-  const dl=new THREE.DirectionalLight(0xffffff,0.85);dl.position.set(0.4,1,1).normalize();threeS.add(dl);
-  const fl=new THREE.DirectionalLight(0xffffff,0.35);fl.position.set(-1,-0.3,0.5).normalize();threeS.add(fl);
-  const rl=new THREE.DirectionalLight(0xffffff,0.2);rl.position.set(0,-1,0.5).normalize();threeS.add(rl);
+  // Studio lighting — reduced ambient (env map provides bounce), precise key/fill/rim
+  threeS.add(new THREE.AmbientLight(0xffffff,0.28));
+  const dl=new THREE.DirectionalLight(0xfffef0,1.1);dl.position.set(0.4,1.2,1).normalize();threeS.add(dl);
+  const fl=new THREE.DirectionalLight(0xc8d2ff,0.55);fl.position.set(-1.2,-0.2,0.6).normalize();threeS.add(fl);
+  const rl=new THREE.DirectionalLight(0xfff8eb,0.35);rl.position.set(0.1,-0.8,0.6).normalize();threeS.add(rl);
 }
 function resizeThreeJS(W,H){
   if(!threeR||!threeC)return;
@@ -852,15 +873,18 @@ function rrect(s,hw,hh,r){
 
 // ─── FRAME MATERIAL ───
 function makeFrameMat(color,mat){
+  const c=new THREE.Color(color);
   switch(mat){
-    case 'metal':case 'titanium':
-      return new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:0.22,metalness:0.88});
-    case 'wood':
-      return new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:0.82,metalness:0.0});
+    case 'metal':
+      return new THREE.MeshStandardMaterial({color:c,roughness:0.12,metalness:0.96,envMapIntensity:2.2});
+    case 'titanium':
+      return new THREE.MeshStandardMaterial({color:c,roughness:0.30,metalness:0.85,envMapIntensity:1.6});
     case 'matte':
-      return new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:0.72,metalness:0.0});
-    default:
-      return new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:0.14,metalness:0.06});
+      return new THREE.MeshStandardMaterial({color:c,roughness:0.90,metalness:0.0,envMapIntensity:0.12});
+    case 'wood':
+      return new THREE.MeshStandardMaterial({color:c,roughness:0.88,metalness:0.0,envMapIntensity:0.10});
+    default: // glossy acetate
+      return new THREE.MeshStandardMaterial({color:c,roughness:0.05,metalness:0.0,envMapIntensity:1.9});
   }
 }
 
@@ -887,7 +911,7 @@ function buildFrame3D(frameData){
   const fMat=makeFrameMat(fc,mat);
   const lMat=new THREE.MeshStandardMaterial({
     color:new THREE.Color(lc),transparent:true,opacity:lo,
-    side:THREE.DoubleSide,roughness:0.04,metalness:0.0,depthWrite:false
+    side:THREE.DoubleSide,roughness:0.0,metalness:0.0,envMapIntensity:1.4,depthWrite:false
   });
 
   // Left (-1) and Right (+1) lens + rim
@@ -904,7 +928,7 @@ function buildFrame3D(frameData){
     const pts3D=pts2D.map(q=>new THREE.Vector3(q.x+cx,q.y,0));
     const rimTube=new THREE.TubeGeometry(
       new THREE.CatmullRomCurve3(pts3D,true,'catmullrom',0.5),
-      pts3D.length*2,rr,8,true
+      pts3D.length*2,rr,12,true
     );
     group.add(new THREE.Mesh(rimTube,fMat));
   });
@@ -918,7 +942,7 @@ function buildFrame3D(frameData){
     new THREE.Vector3(LCX-hw*0.9,0,0),
   ];
   group.add(new THREE.Mesh(
-    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bPts),24,rr*0.7,6,false),fMat
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bPts),24,rr*0.7,8,false),fMat
   ));
 
   // Nose pads (small spheres)
@@ -937,7 +961,7 @@ function buildFrame3D(frameData){
       new THREE.Vector3(sx+side*12, -hh*1.2, -TL*0.90),
     ];
     group.add(new THREE.Mesh(
-      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tPts),28,rr*0.65,6,false),fMat
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tPts),28,rr*0.65,8,false),fMat
     ));
   });
 

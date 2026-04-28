@@ -422,8 +422,8 @@ body{padding-bottom:60px}
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Rim Thickness — <span id="rimThicknessVal">Medium</span></label>
-          <input type="range" id="f3dRimRadius" min="1.5" max="6" step="0.5" value="3.5"
+          <label class="form-label">Rim Thickness — <span id="rimThicknessVal">Thin+</span></label>
+          <input type="range" id="f3dRimRadius" min="1.5" max="6" step="0.5" value="2.0"
             oninput="document.getElementById('rimThicknessVal').textContent=['Thin','Thin+','Medium','Medium+','Thick','Thick+','Extra'][Math.round((this.value-1.5)/0.5)]||''"
             style="-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;width:100%;margin-top:8px">
         </div>
@@ -568,26 +568,73 @@ function initColorSync(){
 function analyzeFramePhoto(src,callback){
   const img=new Image();
   img.onload=()=>{
-    const scale=Math.min(1,180/Math.max(img.naturalWidth,img.naturalHeight));
+    const scale=Math.min(1,220/Math.max(img.naturalWidth,img.naturalHeight));
     const c=document.createElement('canvas');
-    c.width=Math.round(img.naturalWidth*scale);c.height=Math.round(img.naturalHeight*scale);
-    const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
-    const d=ctx.getImageData(0,0,c.width,c.height).data;
-    // Build histogram over non-transparent, non-near-white pixels
+    const W=Math.round(img.naturalWidth*scale),H=Math.round(img.naturalHeight*scale);
+    c.width=W;c.height=H;
+    const ctx=c.getContext('2d');ctx.drawImage(img,0,0,W,H);
+    const d=ctx.getImageData(0,0,W,H).data;
+
+    // ── Frame color + material detection ──
     const hist={};
+    const bVals=[];
+    let sR=0,sG=0,sB=0,fN=0;
     for(let i=0;i<d.length;i+=4){
       if(d[i+3]<80)continue;
-      const r=d[i],g=d[i+1],b=d[i+2];
-      if((r+g+b)/3>220)continue; // skip near-white background
-      const key=(r>>5)+','+(g>>5)+','+(b>>5); // quantize to 32-step bins
+      const r=d[i],g=d[i+1],b=d[i+2],br=(r+g+b)/3;
+      if(br>225)continue; // skip near-white bg
+      const px=(i/4)%W,py=Math.floor((i/4)/W);
+      // Exclude center 35% (lens area)
+      const nx=Math.abs(px-W/2)/(W/2),ny=Math.abs(py-H/2)/(H/2);
+      if(nx<0.35&&ny<0.45)continue;
+      const key=(r>>4)+','+(g>>4)+','+(b>>4); // finer 16-step bins
       hist[key]=(hist[key]||0)+1;
+      bVals.push(br);sR+=r;sG+=g;sB+=b;fN++;
     }
-    let maxC=0,best='1,1,1';
+    let maxC=0,best='2,2,2';
     for(const[k,v]of Object.entries(hist)){if(v>maxC){maxC=v;best=k}}
-    const[rb,gb,bb]=best.split(',').map(n=>Math.min(255,parseInt(n)*32+16));
-    callback('#'+[rb,gb,bb].map(v=>v.toString(16).padStart(2,'0')).join(''));
+    const[rb,gb,bb]=best.split(',').map(n=>Math.min(255,parseInt(n)*16+8));
+    const frameColor='#'+[rb,gb,bb].map(v=>v.toString(16).padStart(2,'0')).join('');
+
+    // Material detection from brightness variance
+    let material='glossy';
+    if(bVals.length>20){
+      const mean=bVals.reduce((s,v)=>s+v,0)/bVals.length;
+      const std=Math.sqrt(bVals.reduce((s,v)=>s+(v-mean)**2,0)/bVals.length);
+      const maxB=Math.max(...bVals);
+      const avgR=fN>0?sR/fN:128,avgG=fN>0?sG/fN:128,avgB2=fN>0?sB/fN:128;
+      if(maxB>235&&std>50){
+        // Very bright highlights + high variance → metal or glossy
+        const isMetal=(avgR>140&&avgG>130&&avgB2>120)&&Math.abs(avgR-avgG)<30&&Math.abs(avgG-avgB2)<30;
+        material=isMetal?'metal':'glossy';
+      }else if(std<22){
+        material='matte';
+      }else{
+        material='glossy';
+      }
+    }
+
+    // ── Lens tint extraction (center lens area) ──
+    let lR=0,lG=0,lB=0,lN=0;
+    for(let i=0;i<d.length;i+=4){
+      if(d[i+3]<15)continue;
+      const px=(i/4)%W,py=Math.floor((i/4)/W);
+      const nx=Math.abs(px-W/2)/(W/2),ny=Math.abs(py-H/2)/(H/2);
+      if(nx<0.28&&ny<0.38){lR+=d[i];lG+=d[i+1];lB+=d[i+2];lN++;}
+    }
+    let lensColor='#888888',lensOpacity=0.12;
+    if(lN>30){
+      const aR=Math.round(lR/lN),aG=Math.round(lG/lN),aB=Math.round(lB/lN);
+      const aB2=(aR+aG+aB)/3;
+      // Darken for tint use — lenses appear lighter in photo due to scene behind
+      const f=0.55;
+      lensColor='#'+[aR,aG,aB].map(v=>Math.min(255,Math.round(v*f)).toString(16).padStart(2,'0')).join('');
+      lensOpacity=aB2>190?0.08:aB2>140?0.13:aB2>90?0.20:0.28;
+    }
+
+    callback({frameColor,material,lensColor,lensOpacity});
   };
-  img.onerror=()=>callback('#2a2a2a');
+  img.onerror=()=>callback({frameColor:'#2a2a2a',material:'glossy',lensColor:'#888888',lensOpacity:0.12});
   img.src=src;
 }
 
@@ -708,9 +755,14 @@ async function handlePhoto(type, input) {
     showToast(`${type === 'front' ? 'Front' : 'Side'} photo processed`, 'success');
     // Auto-detect frame color from the processed (bg-removed) front photo
     if(type==='front'){
-      analyzeFramePhoto(processed,hex=>{
-        document.getElementById('f3dFrameColor').value=hex;
-        document.getElementById('f3dFrameColorHex').value=hex;
+      analyzeFramePhoto(processed,r=>{
+        document.getElementById('f3dFrameColor').value=r.frameColor;
+        document.getElementById('f3dFrameColorHex').value=r.frameColor;
+        document.getElementById('f3dMaterial').value=r.material;
+        document.getElementById('f3dLensColor').value=r.lensColor;
+        document.getElementById('f3dLensColorHex').value=r.lensColor;
+        document.getElementById('f3dLensOpacity').value=r.lensOpacity;
+        document.getElementById('lensOpacityVal').textContent=Math.round(r.lensOpacity*100)+'%';
       });
     }
   } catch (e) {
@@ -925,8 +977,8 @@ function clearForm() {
   document.getElementById('f3dLensOpacity').value='0.32';
   document.getElementById('lensOpacityVal').textContent='32%';
   document.getElementById('f3dMaterial').value='glossy';
-  document.getElementById('f3dRimRadius').value='3.5';
-  document.getElementById('rimThicknessVal').textContent='Medium';
+  document.getElementById('f3dRimRadius').value='2.0';
+  document.getElementById('rimThicknessVal').textContent='Thin+';
   document.getElementById('f3dCatLift').value='0.4';
   document.getElementById('catLiftVal').textContent='40%';
   document.getElementById('f3dLensHeight').value='1.0';
