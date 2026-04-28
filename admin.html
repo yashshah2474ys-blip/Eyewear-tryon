@@ -288,6 +288,35 @@ body{padding-bottom:60px}
       </div>
     </div>
 
+    <!-- 3D MODEL UPLOAD -->
+    <div class="form-group form-full" style="margin-bottom:16px">
+      <div class="form-label">3D Model <span style="color:var(--accent2);font-size:9px;letter-spacing:0.1em">OPTIONAL · GLB FORMAT</span></div>
+      <div style="font-size:10px;color:var(--accent2);margin-bottom:10px;line-height:1.7;padding:8px 12px;background:rgba(126,184,164,0.06);border:1px solid rgba(126,184,184,0.2);border-radius:8px">
+        🧊 Upload a <strong>.glb</strong> file from the pipeline to enable true 3D AR try-on.<br>
+        Without this, the frame uses 2D photo overlay (still works great).
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div class="photo-zone" id="glbZone" style="flex:0 0 auto;width:160px;height:100px;cursor:pointer" onclick="triggerUpload('glbInput')">
+          <input type="file" id="glbInput" accept=".glb,.gltf" onchange="handleGlb(this)" onclick="event.stopPropagation()">
+          <div id="glbPreview">
+            <div style="font-size:24px;opacity:0.3">🧊</div>
+            <div class="photo-label">UPLOAD GLB</div>
+          </div>
+          <span class="photo-badge" style="display:none" id="glbBadge">✓ LOADED</span>
+        </div>
+        <div style="flex:1;min-width:140px">
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">Frame Width (mm) — for 3D scale</label>
+            <input class="form-input" id="fModelWidth" type="number" placeholder="e.g. 140" min="100" max="200" step="0.5" style="width:100%">
+          </div>
+          <div style="font-size:10px;color:var(--muted);line-height:1.6">
+            Enter the total front width in mm (lens + bridge + lens).<br>
+            This calibrates the 3D model to your real frame size.
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- BASIC INFO -->
     <div class="form-grid">
       <div class="form-group">
@@ -548,10 +577,35 @@ function loadSettingsUI() {
 // ═══════════════════════════════════════════
 //  IMAGE PROCESSING
 // ═══════════════════════════════════════════
-let photoData = { front: null, side: null };
+let photoData = { front: null, side: null, glb: null };
 
 function triggerUpload(inputId) {
   document.getElementById(inputId).click();
+}
+
+async function handleGlb(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoData.glb = e.target.result; // base64 data URL of the GLB
+    document.getElementById('glbPreview').innerHTML =
+      `<div style="font-size:22px">🧊</div><div class="photo-label" style="color:var(--accent2)">${file.name}</div><div class="photo-label">${(file.size/1024).toFixed(0)} KB</div>`;
+    document.getElementById('glbZone').classList.add('has-image');
+    document.getElementById('glbBadge').style.display = 'block';
+    showToast('3D model loaded (' + (file.size/1024).toFixed(0) + ' KB)', 'success');
+  };
+  reader.onerror = () => showToast('Failed to read GLB file', 'error');
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function removeGlb() {
+  photoData.glb = null;
+  document.getElementById('glbPreview').innerHTML =
+    `<div style="font-size:24px;opacity:0.3">🧊</div><div class="photo-label">UPLOAD GLB</div>`;
+  document.getElementById('glbZone').classList.remove('has-image');
+  document.getElementById('glbBadge').style.display = 'none';
 }
 
 async function handlePhoto(type, input) {
@@ -781,7 +835,9 @@ function clearForm() {
   document.querySelectorAll('.check-item input').forEach(i => i.checked = false);
   removePhoto('front', { stopPropagation: ()=>{} });
   removePhoto('side', { stopPropagation: ()=>{} });
-  photoData = { front: null, side: null };
+  removeGlb();
+  photoData = { front: null, side: null, glb: null };
+  document.getElementById('fModelWidth').value = '';
 }
 
 // ═══════════════════════════════════════════
@@ -799,6 +855,7 @@ async function saveFrame() {
   if (!shape) { showToast('Please select frame shape', 'error'); return; }
   if (!photoData.front) { showToast('Front photo is required', 'error'); return; }
 
+  const modelWidthRaw = document.getElementById('fModelWidth').value;
   const frame = {
     id: 'frame_' + Date.now(),
     name,
@@ -812,6 +869,8 @@ async function saveFrame() {
     faceShapes: getChecked('faceShapeGroup'),
     frontImage: photoData.front,
     sideImage: photoData.side || null,
+    modelUrl: photoData.glb || null,
+    modelWidthMm: modelWidthRaw ? parseFloat(modelWidthRaw) : null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -879,6 +938,7 @@ function renderInventory(frames) {
           <span class="meta-tag">${esc(f.gender || '—')}</span>
           <span class="meta-tag">${esc(f.shape || '—')}</span>
           ${f.size ? `<span class="meta-tag">${esc(f.size)}</span>` : ''}
+          ${f.modelUrl ? `<span class="meta-tag" style="color:var(--accent2);border-color:var(--accent2)">🧊 3D</span>` : ''}
         </div>
         <div class="frame-card-actions">
           <button class="card-btn" onclick="openEditModal('${esc(f.id)}')">EDIT</button>

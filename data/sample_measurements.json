@@ -1,0 +1,18 @@
+{
+  "frame_id": "rayban_rb3025_aviator_gold",
+  "name": "Ray-Ban RB3025 Aviator Classic",
+  "lens_width_mm": 58,
+  "bridge_width_mm": 14,
+  "temple_length_mm": 135,
+  "lens_height_mm": 44,
+  "total_front_width_mm": 140,
+  "total_height_mm": 52,
+  "material": "metal_polished",
+  "color": "Gold / Green G-15",
+  "gender": "unisex",
+  "shape": "aviator",
+  "type": "full-rim",
+  "occasions": ["casual", "outdoor", "sport"],
+  "face_shapes": ["oval", "heart", "oblong"],
+  "notes": "Measured with digital calipers. Lens width at widest point."
+}

@@ -6,6 +6,8 @@
 <title>LENSFIT — Try On</title>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.163.0/examples/js/loaders/GLTFLoader.js" crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -15,6 +17,9 @@
   --danger:#d4756a;--text:#f0ede8;--muted:#7a7a8a;--radius:16px;
 }
 html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;touch-action:manipulation}
+#threeContainer{position:absolute;inset:0;pointer-events:none;z-index:1;display:none}
+#threeContainer canvas{width:100%!important;height:100%!important}
+.mode3d-badge{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(126,184,164,0.18);border:1px solid var(--accent2);color:var(--accent2);font-size:9px;letter-spacing:0.12em;padding:3px 10px;border-radius:20px;pointer-events:none;z-index:2}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;z-index:10}
 .screen.active{display:flex}
 
@@ -365,6 +370,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 <div class="screen" id="screenTryon">
   <video id="tryonVideo" autoplay playsinline muted></video>
   <canvas id="tryonCanvas"></canvas>
+  <div id="threeContainer"></div>
   <div class="tryon-topbar">
     <button class="t-back" onclick="goBack()">← Back</button>
     <div class="t-name" id="tName">—</div>
@@ -458,6 +464,7 @@ const S={
   gender:null,faceShape:null,
   allFrames:[],suggestions:[],stripFrames:[],
   currentIdx:0,detailFrame:null,prevScreen:null,
+  mode3D:false,  // true when current frame has a 3D GLB model
 };
 
 // ═══════════ NAVIGATION ═══════════
@@ -749,6 +756,7 @@ async function startTryon(focusId){
   goToScreen('screenTryon');
   syncSliders();
   SM={x:null,y:null,sc:null,rot:null};
+  if (typeof THREE !== 'undefined') initThree();
 
   // Strip = ALL frames scored (suggestions already scored all frames), best match first
   // Gender does NOT filter — everyone can try everything
@@ -777,6 +785,9 @@ async function startTryon(focusId){
     await tCamera.start();
     document.getElementById('tLoading').classList.add('hidden');
     scrollToActive();
+    // Load 3D model for initial frame if it has one
+    const initFrame = S.stripFrames[S.currentIdx];
+    if (initFrame && initFrame.modelUrl && typeof THREE !== 'undefined') loadFrameModel(initFrame);
   }catch(e){
     document.getElementById('tLoading').classList.add('hidden');
     document.getElementById('tPerm').classList.add('show');
@@ -897,6 +908,226 @@ function browseSelect(id){closeBrowse();openDetail(id,'screenResults')}
 
 // ═══════════ INIT ═══════════
 openDB().catch(e=>console.error('DB:',e));
+
+// ═══════════════════════════════════════════════════════════════════
+//  THREE.JS 3D AR ENGINE
+//  Activated when current frame has a .modelUrl (GLB from pipeline).
+//  Falls back to existing 2D canvas overlay when modelUrl is absent.
+// ═══════════════════════════════════════════════════════════════════
+const T3D = {
+  scene: null, renderer: null, camera: null,
+  model: null, loader: null,
+  ready: false, loading: false,
+  clock: null,
+  // Smoothed position/scale matching the 2D system
+  sm: { x: 0, y: 0, sc: 1, rot: 0 },
+};
+
+function initThree() {
+  if (T3D.ready) return;
+  if (typeof THREE === 'undefined') return;
+
+  const container = document.getElementById('threeContainer');
+  const W = window.innerWidth, H = window.innerHeight;
+
+  // Renderer with transparent background so video shows through
+  T3D.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, premultipliedAlpha: false });
+  T3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  T3D.renderer.setSize(W, H);
+  T3D.renderer.setClearColor(0x000000, 0);
+  T3D.renderer.outputEncoding = THREE.sRGBEncoding;
+  container.appendChild(T3D.renderer.domElement);
+
+  // Orthographic camera — maps directly to pixel coords
+  T3D.camera = new THREE.OrthographicCamera(-W/2, W/2, H/2, -H/2, 0.1, 10000);
+  T3D.camera.position.z = 1000;
+
+  T3D.scene = new THREE.Scene();
+
+  // Three-point lighting setup
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  T3D.scene.add(ambient);
+
+  const key = new THREE.DirectionalLight(0xffffff, 1.2);
+  key.position.set(0.5, 1, 2);
+  T3D.scene.add(key);
+
+  const fill = new THREE.DirectionalLight(0xffffff, 0.4);
+  fill.position.set(-1, 0, 1);
+  T3D.scene.add(fill);
+
+  const rim = new THREE.DirectionalLight(0xffffff, 0.3);
+  rim.position.set(0, -1, -1);
+  T3D.scene.add(rim);
+
+  T3D.loader = new THREE.GLTFLoader();
+  T3D.clock = new THREE.Clock();
+  T3D.ready = true;
+
+  window.addEventListener('resize', () => {
+    const nW = window.innerWidth, nH = window.innerHeight;
+    T3D.renderer.setSize(nW, nH);
+    T3D.camera.left = -nW/2; T3D.camera.right = nW/2;
+    T3D.camera.top = nH/2; T3D.camera.bottom = -nH/2;
+    T3D.camera.updateProjectionMatrix();
+  });
+}
+
+function loadFrameModel(frame) {
+  if (!T3D.ready) initThree();
+  if (!T3D.ready) return; // THREE not loaded
+
+  // Unload previous model
+  if (T3D.model) {
+    T3D.scene.remove(T3D.model);
+    T3D.model.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) { (Array.isArray(c.material)?c.material:[c.material]).forEach(m=>m.dispose()); } });
+    T3D.model = null;
+  }
+
+  if (!frame || !frame.modelUrl) {
+    set3DMode(false);
+    return;
+  }
+
+  T3D.loading = true;
+
+  T3D.loader.load(
+    frame.modelUrl,
+    gltf => {
+      T3D.model = gltf.scene;
+
+      // Compute bounding box to get the model's intrinsic size
+      const box = new THREE.Box3().setFromObject(T3D.model);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+
+      // Store native width in mm (from modelWidthMm) for scaling calc
+      T3D.model.userData.widthMm = frame.modelWidthMm || 140;
+      T3D.model.userData.nativeWidth = size.x; // native mesh width in model units
+
+      // Center model on origin (bridge center)
+      T3D.model.position.sub(center);
+
+      T3D.scene.add(T3D.model);
+
+      // Show 3D badge
+      let badge = document.querySelector('.mode3d-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'mode3d-badge';
+        badge.textContent = '🧊 3D MODE';
+        document.getElementById('screenTryon').appendChild(badge);
+      }
+
+      set3DMode(true);
+      T3D.loading = false;
+    },
+    undefined,
+    err => {
+      console.warn('[3D] GLB load failed:', err);
+      set3DMode(false);
+      T3D.loading = false;
+    }
+  );
+}
+
+function set3DMode(on) {
+  S.mode3D = on;
+  const container = document.getElementById('threeContainer');
+  const canvas2d = document.getElementById('tryonCanvas');
+  if (on) {
+    container.style.display = 'block';
+    // Keep 2D canvas for video drawing; 3D overlays on top
+  } else {
+    container.style.display = 'none';
+    const badge = document.querySelector('.mode3d-badge');
+    if (badge) badge.remove();
+  }
+}
+
+function update3DOverlay(lm, W, H) {
+  if (!T3D.ready || !T3D.model || !T3D.renderer) return;
+
+  // Eye landmarks: 33 (left outer), 263 (right outer) in MediaPipe face_mesh
+  const lE = lm[33], rE = lm[263];
+  const lEx = lE.x * W, lEy = lE.y * H;
+  const rEx = rE.x * W, rEy = rE.y * H;
+
+  // Eye center in pixel space (mirrored video: flip X)
+  // The video canvas is CSS-flipped via scaleX(-1), so flip X here too
+  const ecXraw = (lEx + rEx) * 0.5;
+  const ecYraw = (lEy + rEy) * 0.5;
+  const eyeD = Math.hypot(rEx - lEx, rEy - lEy);
+  const ang = Math.atan2(rEy - lEy, rEx - lEx);
+
+  // Convert pixel coords to Three.js ortho coords (origin at center, Y inverted)
+  const threeX = (W / 2 - ecXraw);  // mirror X (CSS flip compensation)
+  const threeY = (H / 2 - ecYraw);  // Y flipped: pixel Y increases downward, Three Y upward
+
+  // Scale: real_width_mm / frame_native_width = mm_per_unit
+  // eyeD_px corresponds to the average inter-pupillary distance
+  // Typical IPD ≈ 63mm. So: 1px = 63mm / eyeD_px
+  // Frame total width in px = frame.modelWidthMm * (eyeD_px / 63)
+  const ipd_mm = 63;
+  const px_per_mm = eyeD / ipd_mm;
+  const targetWidthPx = (T3D.model.userData.widthMm || 140) * px_per_mm;
+  const nativeWidth = T3D.model.userData.nativeWidth || 1;
+  const baseScale = targetWidthPx / nativeWidth;
+  const finalScale = baseScale * (CAL.scaleMultiplier || 1.0);
+
+  // Apply calibration offsets (same units as 2D: pixels)
+  const cosA = Math.cos(ang), sinA = Math.sin(ang);
+  const ox = (CAL.xOffset || 0) * cosA - (CAL.yOffset || 0) * sinA;
+  const oy = (CAL.xOffset || 0) * sinA + (CAL.yOffset || 0) * cosA;
+
+  // Smooth (same EMA alpha as 2D system)
+  const alpha = 0.25;
+  if (T3D.sm.x === 0 && T3D.sm.y === 0) {
+    T3D.sm = { x: threeX + ox, y: threeY - oy, sc: finalScale, rot: ang };
+  } else {
+    T3D.sm.x += alpha * (threeX + ox - T3D.sm.x);
+    T3D.sm.y += alpha * (threeY - oy - T3D.sm.y);
+    T3D.sm.sc += alpha * (finalScale - T3D.sm.sc);
+    T3D.sm.rot += alpha * (ang - T3D.sm.rot);
+  }
+
+  // Apply to Three.js model
+  T3D.model.position.set(T3D.sm.x, T3D.sm.y, 0);
+  T3D.model.scale.setScalar(T3D.sm.sc);
+  T3D.model.rotation.z = -(T3D.sm.rot + ((CAL.rotationOffset || 0) * Math.PI / 180));
+
+  T3D.renderer.render(T3D.scene, T3D.camera);
+}
+
+// ── Patch selectFrame to trigger GLB loading ────────────────────────────────
+const _origSelectFrame = selectFrame;
+function selectFrame(idx) {
+  _origSelectFrame(idx);
+  const frame = S.stripFrames[idx];
+  if (frame && frame.modelUrl) {
+    loadFrameModel(frame);
+  } else {
+    set3DMode(false);
+  }
+}
+
+// ── Patch drawOverlay to call 3D renderer when in 3D mode ──────────────────
+const _origDrawOverlay = drawOverlay;
+function drawOverlay(ctx, lm, W, H) {
+  if (S.mode3D && T3D.model) {
+    // In 3D mode: still draw video on 2D canvas, skip PNG overlay
+    update3DOverlay(lm, W, H);
+  } else {
+    // Fallback: original 2D PNG overlay
+    _origDrawOverlay(ctx, lm, W, H);
+    // Ensure 3D renderer is cleared
+    if (T3D.ready && T3D.renderer) {
+      T3D.renderer.clear();
+    }
+  }
+}
 </script>
 </body>
 </html>
