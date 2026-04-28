@@ -918,7 +918,6 @@ function buildFrame3D(frameData){
   const rr=p.rimRadius!=null?p.rimRadius:F.RR;
   const lhS=p.lensHeight!=null?p.lensHeight:1.0;
   const cl=p.catEyeLift!=null?p.catEyeLift:0.4;
-  // Use real mm dimensions if provided, else fall back to defaults
   const LW=dims.lensWidth||52;
   const BW=dims.bridgeWidth||18;
   const TL=dims.templeLength||145;
@@ -927,49 +926,62 @@ function buildFrame3D(frameData){
   const hw=LW/2,hh=(LH_base*lhS)/2;
   const group=new THREE.Group();
   const fMat=makeFrameMat(fc,mat);
-  const lMat=new THREE.MeshStandardMaterial({
-    color:new THREE.Color(lc),transparent:true,opacity:lo,
-    side:THREE.DoubleSide,roughness:0.0,metalness:0.0,envMapIntensity:1.4,depthWrite:false
-  });
 
-  // Left (-1) and Right (+1) lens + rim
-  [-1,1].forEach(side=>{
-    const cx=side*LCX;
-    const shape=makeLensShape(type,hw,hh,{catEyeLift:cl});
-    // Transparent lens face
-    const lens=new THREE.Mesh(new THREE.ShapeGeometry(shape,32),lMat);
-    lens.position.set(cx,0,0);group.add(lens);
-    // Rim tube following the lens outline
-    const pts2D=shape.getSpacedPoints(80);
-    const lp=pts2D[pts2D.length-1],fp=pts2D[0];
-    if(Math.abs(lp.x-fp.x)<0.5&&Math.abs(lp.y-fp.y)<0.5)pts2D.pop();
-    const pts3D=pts2D.map(q=>new THREE.Vector3(q.x+cx,q.y,0));
-    const rimTube=new THREE.TubeGeometry(
-      new THREE.CatmullRomCurve3(pts3D,true,'catmullrom',0.5),
-      pts3D.length*2,rr,12,true
-    );
-    group.add(new THREE.Mesh(rimTube,fMat));
-  });
+  // Detect whether a real photo is loaded and ready
+  const fImg=(typeof fImgs!=='undefined'&&frameData.frontImage)?fImgs[frameData.id]:null;
+  const hasPhoto=fImg&&fImg.complete&&fImg.naturalWidth>0;
 
-  // Bridge (arc connecting inner rim edges)
-  const bPts=[
-    new THREE.Vector3(-LCX+hw*0.9,0,0),
-    new THREE.Vector3(-BW*0.22,-hh*0.1,rr*0.6),
-    new THREE.Vector3(0,-hh*0.14,rr*0.9),
-    new THREE.Vector3(BW*0.22,-hh*0.1,rr*0.6),
-    new THREE.Vector3(LCX-hw*0.9,0,0),
-  ];
-  group.add(new THREE.Mesh(
-    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bPts),24,rr*0.7,8,false),fMat
-  ));
+  if(hasPhoto){
+    // ── PHOTO MODE ──────────────────────────────────────────────────────────
+    // Front face = uploaded photo mapped on a flat plane. No rim tubes, no lens
+    // geometry — they would show through and corrupt the photo appearance.
+    // Only temples are built in 3D so head rotation looks correct.
+    const tex=makePhotoTexture(fImg);
+    const pMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.FrontSide,depthWrite:false});
+    // Plane covers outer-edge to outer-edge of frame front, with 8% padding for photo margins
+    const pW=(2*LW+BW)*1.1;
+    const pH=pW/(fImg.naturalWidth/fImg.naturalHeight);
+    const plane=new THREE.Mesh(new THREE.PlaneGeometry(pW,pH),pMat);
+    plane.position.set(0,0,1);
+    group.add(plane);
+  }else{
+    // ── PARAMETRIC MODE ─────────────────────────────────────────────────────
+    // No photo: build full 3D rim tubes + transparent lenses + bridge + nose pads
+    const lMat=new THREE.MeshStandardMaterial({
+      color:new THREE.Color(lc),transparent:true,opacity:lo,
+      side:THREE.DoubleSide,roughness:0.0,metalness:0.0,envMapIntensity:1.4,depthWrite:false
+    });
+    [-1,1].forEach(side=>{
+      const cx=side*LCX;
+      const shape=makeLensShape(type,hw,hh,{catEyeLift:cl});
+      const lens=new THREE.Mesh(new THREE.ShapeGeometry(shape,32),lMat);
+      lens.position.set(cx,0,0);group.add(lens);
+      const pts2D=shape.getSpacedPoints(80);
+      const lp=pts2D[pts2D.length-1],fp=pts2D[0];
+      if(Math.abs(lp.x-fp.x)<0.5&&Math.abs(lp.y-fp.y)<0.5)pts2D.pop();
+      const pts3D=pts2D.map(q=>new THREE.Vector3(q.x+cx,q.y,0));
+      group.add(new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts3D,true,'catmullrom',0.5),pts3D.length*2,rr,12,true),fMat
+      ));
+    });
+    // Bridge
+    const bPts=[
+      new THREE.Vector3(-LCX+hw*0.9,0,0),
+      new THREE.Vector3(-BW*0.22,-hh*0.1,rr*0.6),
+      new THREE.Vector3(0,-hh*0.14,rr*0.9),
+      new THREE.Vector3(BW*0.22,-hh*0.1,rr*0.6),
+      new THREE.Vector3(LCX-hw*0.9,0,0),
+    ];
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bPts),24,rr*0.7,8,false),fMat));
+    // Nose pads
+    [-1,1].forEach(side=>{
+      const np=new THREE.Mesh(new THREE.SphereGeometry(rr*0.85,7,7),fMat);
+      np.position.set(side*BW*0.3,-hh*0.14,rr*1.6);group.add(np);
+    });
+  }
 
-  // Nose pads (small spheres)
-  [-1,1].forEach(side=>{
-    const np=new THREE.Mesh(new THREE.SphereGeometry(rr*0.85,7,7),fMat);
-    np.position.set(side*BW*0.3,-hh*0.14,rr*1.6);group.add(np);
-  });
-
-  // Temples — go primarily in -Z (backward into depth), minimal X splay (~12mm), drop in Y to ear level
+  // ── TEMPLES — always built in 3D regardless of photo/parametric mode ──────
+  // Go primarily in -Z (backward into depth), minimal X splay, drop to ear level
   [-1,1].forEach(side=>{
     const sx=side*(LCX+hw);
     const tPts=[
@@ -983,20 +995,8 @@ function buildFrame3D(frameData){
     ));
   });
 
-  // Photo texture plane — wraps uploaded front image onto frame geometry
-  const fImg=typeof fImgs!=='undefined'?fImgs[frameData.id]:null;
-  if(frameData.frontImage&&fImg&&fImg.complete&&fImg.naturalWidth>0){
-    const tex=makePhotoTexture(fImg);
-    const pMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.FrontSide,depthWrite:false});
-    const pW=(LCX+hw)*2+rr*2;
-    const pH=pW/(fImg.naturalWidth/fImg.naturalHeight);
-    const plane=new THREE.Mesh(new THREE.PlaneGeometry(pW,pH),pMat);
-    plane.position.set(0,0,rr+0.5);
-    group.add(plane);
-  }
-
-  // Shift frame down so pupils land at 40% from lens top (not at geometric center)
-  group.position.y = -hh * 0.2;
+  // Shift frame down so pupils land at 40% from lens top
+  group.position.y=-hh*0.2;
   return group;
 }
 
