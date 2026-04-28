@@ -525,7 +525,14 @@ function retryAnalysis(){
 }
 function stopAnalysis(){
   aRunA=false;
-  try{aStream&&aStream.getTracks().forEach(t=>t.stop())}catch(e){}
+  try{aFaceMesh&&aFaceMesh.close&&aFaceMesh.close()}catch(e){}
+  aFaceMesh=null;
+  try{
+    aStream&&aStream.getTracks().forEach(t=>t.stop());
+    const v=document.getElementById('analysisVideo');
+    if(v){v.pause();v.srcObject=null;}
+  }catch(e){}
+  aStream=null;
   aStarted=false;aDone=false;aCount=0;aBuf=[];
 }
 function goBackFromAnalysis(){
@@ -1155,6 +1162,9 @@ async function startTryon(focusId){
   tStarted=true;
 
   try{
+    // Clear any stale stream on the video element before requesting camera
+    const vidPre=document.getElementById('tryonVideo');
+    if(vidPre&&vidPre.srcObject){try{vidPre.srcObject.getTracks().forEach(t=>t.stop())}catch(e){}vidPre.srcObject=null;}
     tStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
     const vid=document.getElementById('tryonVideo');
     const cvs=document.getElementById('tryonCanvas');
