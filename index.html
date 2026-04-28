@@ -871,6 +871,24 @@ function rrect(s,hw,hh,r){
   s.lineTo(-hw,-hh+r);s.quadraticCurveTo(-hw,-hh,-hw+r,-hh);
 }
 
+// ─── PHOTO TEXTURE ───
+function makePhotoTexture(img){
+  const c=document.createElement('canvas');
+  c.width=img.naturalWidth;c.height=img.naturalHeight;
+  const x=c.getContext('2d');x.drawImage(img,0,0);
+  const d=x.getImageData(0,0,c.width,c.height);
+  const px=d.data;
+  for(let i=0;i<px.length;i+=4){
+    const br=(px[i]+px[i+1]+px[i+2])/3;
+    if(br>220)px[i+3]=0;
+    else if(br>190)px[i+3]=Math.round((220-br)/30*128);
+  }
+  x.putImageData(d,0,0);
+  const t=new THREE.CanvasTexture(c);
+  t.colorSpace=THREE.SRGBColorSpace;
+  return t;
+}
+
 // ─── FRAME MATERIAL ───
 function makeFrameMat(color,mat){
   const c=new THREE.Color(color);
@@ -964,6 +982,18 @@ function buildFrame3D(frameData){
       new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tPts),28,rr*0.65,8,false),fMat
     ));
   });
+
+  // Photo texture plane — wraps uploaded front image onto frame geometry
+  const fImg=typeof fImgs!=='undefined'?fImgs[frameData.id]:null;
+  if(frameData.frontImage&&fImg&&fImg.complete&&fImg.naturalWidth>0){
+    const tex=makePhotoTexture(fImg);
+    const pMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.FrontSide,depthWrite:false});
+    const pW=(LCX+hw)*2+rr*2;
+    const pH=pW/(fImg.naturalWidth/fImg.naturalHeight);
+    const plane=new THREE.Mesh(new THREE.PlaneGeometry(pW,pH),pMat);
+    plane.position.set(0,0,rr+0.5);
+    group.add(plane);
+  }
 
   // Shift frame down so pupils land at 40% from lens top (not at geometric center)
   group.position.y = -hh * 0.2;
@@ -1114,9 +1144,9 @@ async function startTryon(focusId){
     // so they work correctly regardless of video native resolution
     document.getElementById('tLoading').classList.add('hidden');
     scrollToActive();
-    // Build 3D only for frames with no photo — photo frames always use 2D overlay
+    // Build 3D for any frame that has shape3d (photo frames also get 3D via texture plane)
     const f0=S.stripFrames[S.currentIdx];
-    if(f0&&!f0.frontImage&&f0.shape3d&&threeS&&!threeF){threeF=buildFrame3D(f0);threeS.add(threeF)}
+    if(f0&&f0.shape3d&&threeS&&!threeF){threeF=buildFrame3D(f0);threeS.add(threeF)}
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
     tFaceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
     tFaceMesh.onResults(onTryonResults);
@@ -1147,8 +1177,8 @@ function onTryonResults(results){
     document.getElementById('ttrack').textContent='Tracking';
     const lm=results.multiFaceLandmarks[0];
     const f=S.stripFrames[S.currentIdx];
-    // 3D only for frames with no photo. Photo frames always use 2D overlay — it IS the real frame.
-    if(f&&!f.frontImage&&f.shape3d&&threeF){
+    // 3D for any frame with shape3d — photo frames also use 3D (photo texture wrapped on geometry)
+    if(f&&f.shape3d&&threeF){
       drawOverlay3D(lm,W,H);
     }else{
       if(threeF){threeF.visible=false;if(threeR&&threeS&&threeC)threeR.render(threeS,threeC);}
@@ -1244,8 +1274,7 @@ function selectFrame(idx){
   pdBuf=[];
   const f=S.stripFrames[idx];
   // Build new model BEFORE disposing old — prevents one-frame null gap in render loop
-  // Only build 3D for frames without a photo (photo frames always use 2D overlay)
-  const newF=(f&&!f.frontImage&&f.shape3d&&threeS)?buildFrame3D(f):null;
+  const newF=(f&&f.shape3d&&threeS)?buildFrame3D(f):null;
   if(newF)threeS.add(newF);
   if(threeF){disposeObj(threeF);threeS&&threeS.remove(threeF);}
   threeF=newF;
