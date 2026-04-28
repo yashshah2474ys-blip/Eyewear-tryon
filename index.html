@@ -386,8 +386,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   <div class="calib-panel" id="calibPanel">
     <div class="cp-title">Frame Alignment</div>
     <div class="cp-row">
-      <div class="cp-lrow"><span class="cp-lbl">SCALE</span><span class="cp-val" id="cvScale">1.00</span></div>
-      <input type="range" id="csScale" min="0.4" max="2.5" step="0.01" value="1.0" oninput="updateCalib('scaleMultiplier',this.value,'cvScale',v=>parseFloat(v).toFixed(2))">
+      <div class="cp-lrow"><span class="cp-lbl">SCALE</span><span class="cp-val" id="cvScale">0.88</span></div>
+      <input type="range" id="csScale" min="0.4" max="2.5" step="0.01" value="0.88" oninput="updateCalib('scaleMultiplier',this.value,'cvScale',v=>parseFloat(v).toFixed(2))">
     </div>
     <div class="cp-row">
       <div class="cp-lrow"><span class="cp-lbl">Y OFFSET</span><span class="cp-val" id="cvY">0</span></div>
@@ -727,8 +727,8 @@ function tryOnFromDetail(){if(S.detailFrame)startTryon(S.detailFrame.id)}
 function viewDetail(){const f=S.stripFrames[S.currentIdx];if(f)openDetail(f.id,'screenTryon')}
 
 // ═══════════ CALIBRATION ═══════════
-const DCAL={scaleMultiplier:1.0,xOffset:0,yOffset:0,rotationOffset:0,manualPD:0};
-const CAL_VER='v3';
+const DCAL={scaleMultiplier:0.88,xOffset:0,yOffset:0,rotationOffset:0,manualPD:0};
+const CAL_VER='v4';
 let CAL=(()=>{try{const s=localStorage.getItem('lensfit_calib');const ver=localStorage.getItem('lensfit_calib_ver');if(s&&ver===CAL_VER)return{...DCAL,...JSON.parse(s)};return{...DCAL}}catch(e){return{...DCAL}}})();
 localStorage.setItem('lensfit_calib_ver',CAL_VER);
 function saveCAL(){try{localStorage.setItem('lensfit_calib',JSON.stringify(CAL))}catch(e){}}
@@ -889,6 +889,23 @@ function makePhotoTexture(img){
   return t;
 }
 
+// Extract dominant non-white color from photo — used for temple material in photo mode
+function extractFrameColor(img){
+  const c=document.createElement('canvas');
+  const s=60/Math.max(img.naturalWidth,img.naturalHeight);
+  c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);
+  const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);
+  const d=x.getImageData(0,0,c.width,c.height).data;
+  let rS=0,gS=0,bS=0,n=0;
+  for(let i=0;i<d.length;i+=4){
+    const br=(d[i]+d[i+1]+d[i+2])/3;
+    if(br>210||br<8)continue; // skip near-white background and pure black noise
+    rS+=d[i];gS+=d[i+1];bS+=d[i+2];n++;
+  }
+  if(n<20)return'#2a2a2a';
+  return'#'+[rS,gS,bS].map(v=>Math.round(v/n).toString(16).padStart(2,'0')).join('');
+}
+
 // ─── FRAME MATERIAL ───
 function makeFrameMat(color,mat){
   const c=new THREE.Color(color);
@@ -936,6 +953,12 @@ function buildFrame3D(frameData){
     // Front face = uploaded photo mapped on a flat plane. No rim tubes, no lens
     // geometry — they would show through and corrupt the photo appearance.
     // Only temples are built in 3D so head rotation looks correct.
+
+    // Override frame material color by reading directly from the photo pixels —
+    // avoids mismatches when admin auto-detection stored a wrong color.
+    const photoColor=extractFrameColor(fImg);
+    const fMatPhoto=makeFrameMat(photoColor,mat);
+
     const tex=makePhotoTexture(fImg);
     const pMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.FrontSide,depthWrite:false});
     // Plane covers outer-edge to outer-edge of frame front, with 8% padding for photo margins
@@ -981,7 +1004,8 @@ function buildFrame3D(frameData){
   }
 
   // ── TEMPLES — always built in 3D regardless of photo/parametric mode ──────
-  // Go primarily in -Z (backward into depth), minimal X splay, drop to ear level
+  // In photo mode use color extracted directly from the image for accurate match.
+  const tMat=hasPhoto?fMatPhoto:fMat;
   [-1,1].forEach(side=>{
     const sx=side*(LCX+hw);
     const tPts=[
@@ -991,12 +1015,12 @@ function buildFrame3D(frameData){
       new THREE.Vector3(sx+side*12, -hh*1.2, -TL*0.90),
     ];
     group.add(new THREE.Mesh(
-      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tPts),28,rr*0.65,8,false),fMat
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tPts),28,rr*0.65,8,false),tMat
     ));
   });
 
-  // Shift frame down so pupils land at 40% from lens top
-  group.position.y=-hh*0.2;
+  // Pupils sit at 40% from lens top — shift frame down by half the remaining gap
+  group.position.y=-hh*0.1;
   return group;
 }
 
