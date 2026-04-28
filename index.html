@@ -417,6 +417,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <div class="perm-icon">📷</div>
     <div class="perm-title">Camera Needed</div>
     <div class="perm-msg">Camera access is required for the AR try-on.</div>
+    <div id="tPermErr" style="font-size:11px;color:#e8a87c;margin:8px 0;word-break:break-all;"></div>
     <button class="perm-btn" onclick="retryTryon()">ALLOW & RETRY</button>
   </div>
 </div>
@@ -500,7 +501,11 @@ async function startAnalysis(){
   if(aStarted)return;
   aStarted=true;aDone=false;aCount=0;aBuf=[];
   try{
-    aStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+    try{
+      aStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'}},audio:false});
+    }catch(e1){
+      aStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+    }
     const vid=document.getElementById('analysisVideo');
     const cvs=document.getElementById('analysisCanvas');
     vid.srcObject=aStream;
@@ -1162,23 +1167,26 @@ async function startTryon(focusId){
   tStarted=true;
 
   try{
-    // Clear any stale stream on the video element before requesting camera
+    // Clear any stale stream before requesting camera
     const vidPre=document.getElementById('tryonVideo');
     if(vidPre&&vidPre.srcObject){try{vidPre.srcObject.getTracks().forEach(t=>t.stop())}catch(e){}vidPre.srcObject=null;}
-    tStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+
+    // Try front camera with soft constraint first, fall back to any camera
+    try{
+      tStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'}},audio:false});
+    }catch(e1){
+      tStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+    }
+
     const vid=document.getElementById('tryonVideo');
     const cvs=document.getElementById('tryonCanvas');
     vid.srcObject=tStream;
     vid.play().catch(()=>{});
     const initW=window.innerWidth,initH=window.innerHeight;
     cvs.width=initW;cvs.height=initH;
-    // Initialize Three.js with screen dimensions immediately
     if(!threeR)initThreeJS(initW,initH);
-    // Canvases stay at screen dimensions — landmark coords are normalized 0-1
-    // so they work correctly regardless of video native resolution
     document.getElementById('tLoading').classList.add('hidden');
     scrollToActive();
-    // Build 3D for any frame that has shape3d (photo frames also get 3D via texture plane)
     const f0=S.stripFrames[S.currentIdx];
     if(f0&&f0.shape3d&&threeS&&!threeF){threeF=buildFrame3D(f0);threeS.add(threeF)}
     tFaceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
@@ -1187,7 +1195,9 @@ async function startTryon(focusId){
     tRunT=true;
     (function tLoop(){if(!tRunT)return;tFaceMesh.send({image:vid}).catch(()=>{}).then(()=>{if(tRunT)requestAnimationFrame(tLoop)})})();
   }catch(e){
+    tStarted=false;
     document.getElementById('tLoading').classList.add('hidden');
+    document.getElementById('tPermErr').textContent=e.name+': '+e.message;
     document.getElementById('tPerm').classList.add('show');
   }
 }
