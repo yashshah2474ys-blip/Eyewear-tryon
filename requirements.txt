@@ -5,15 +5,14 @@ scipy>=1.10.0
 # Image processing
 opencv-python>=4.8.0
 Pillow>=10.0.0
-rembg>=2.0.50
 imageio>=2.31.0
+
+# Background removal (optional - falls back to OpenCV if install fails)
+# rembg>=2.0.50
 
 # 3D processing
 trimesh>=4.0.0
-open3d>=0.17.0
-pymeshlab>=2022.2.post4
 pygltflib>=1.16.0
-pyrender>=0.1.45
 
 # HTTP / API
 httpx>=0.25.0
