@@ -28,7 +28,7 @@ class Config:
     BLENDER_SCRIPTS: Path = PIPELINE_ROOT / "blender_scripts"
 
     # ── External tool binaries (override via environment variables) ───────────
-    COLMAP_BIN: str = os.environ.get("COLMAP_BIN", "colmap")
+    COLMAP_BIN: str = os.environ.get("COLMAP_BIN", r"D:\COLMAP\bin\colmap.exe")
     OPENMVS_BIN_DIR: str = os.environ.get("OPENMVS_BIN_DIR", r"C:\OpenMVS\bin")
     BLENDER_BIN: str = os.environ.get("BLENDER_BIN") or r"D:\Blender Foundation\Blender 5.1\blender.exe"
 
