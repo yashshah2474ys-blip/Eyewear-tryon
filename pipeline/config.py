@@ -29,7 +29,7 @@ class Config:
 
     # ── External tool binaries (override via environment variables) ───────────
     COLMAP_BIN: str = os.environ.get("COLMAP_BIN", r"D:\COLMAP\bin\colmap.exe")
-    OPENMVS_BIN_DIR: str = os.environ.get("OPENMVS_BIN_DIR", r"C:\OpenMVS\bin")
+    OPENMVS_BIN_DIR: str = os.environ.get("OPENMVS_BIN_DIR", r"D:\OpenMVS_Windows_x64\vc17\x64\Release")
     BLENDER_BIN: str = os.environ.get("BLENDER_BIN") or r"D:\Blender Foundation\Blender 5.1\blender.exe"
 
     # ── Tripo3D API (optional fast-track) ─────────────────────────────────────
