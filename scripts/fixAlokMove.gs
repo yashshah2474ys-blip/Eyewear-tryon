@@ -11,7 +11,7 @@ function fixAlokMove() {
     if (pa !== '-2.50 -0.50' || pb !== '-3.00 -0.50' || la !== '+2.50' || lb !== '+2.50' || va !== 4 || vb !== 25) { say('Sheet is different – NOTHING changed. Tell Claude: ' + pa + ' ' + va + ' / ' + pb + ' ' + vb); return; }
     var h = ss.getSheetByName('_HISTORY'), hv = h.getRange(2, 11, h.getLastRow() - 1, 1).getValues(), mx = 0;
     hv.forEach(function (r) { var k = Number(r[0]); if (k > mx) mx = k; });
-    var sd = mx + 1, now = new Date(), rng = String(sh.getRange('BH170').getDisplayValue()), rngb = String(sh.getRange('BH186').getDisplayValue());
+    var sd = mx + 1, now = new Date(), rng = String(sh.getRange(170, 102).getDisplayValue()), rngb = String(sh.getRange(186, 102).getDisplayValue());
     var rows = [
       [now, T, "'" + rng, "'-2.50 -0.50", "'+2.50", 'IN', 5, 4, 9, 'put back', 403, 'ALOK PURSHANTAM', 'AD170', "'×135"],
       [now, T, "'" + rng, "'-2.50 -0.50", "'+2.50", 'OUT', 9, 9, 0, 'moved to -3.00 -0.50', sd, 'STOCK DIFFERENCE', 'AD170', "'×135"],
