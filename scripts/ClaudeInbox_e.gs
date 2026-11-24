@@ -1,4 +1,4 @@
-var SAME_DAY_PARTIES = ['RIAZ', 'RIYAZ', 'SUNNY', 'MUNNA', 'ASGAR', 'ASGHAR', 'YUSUF', 'YOUSUF'];
+var SAME_DAY_PARTIES = ['RIAZ', 'SUNNY', 'MUNNA', 'ASGAR', 'YUSUF'];
 /* ================= v19e: same-day parties (RIAZ, HANI, MUNNA, ASGAR, YUSUF) go into today's slip.  v19d: 📥 Load slip from Claude – loads AND finishes, one slip or ALL at once ================= */
 function loadClaudeSlip() {
   var ui = SpreadsheetApp.getUi(), ss = SpreadsheetApp.getActiveSpreadsheet(), cfg = ss.getSheetByName('_CONFIG');
