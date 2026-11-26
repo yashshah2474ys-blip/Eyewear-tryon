@@ -74,3 +74,4 @@ PARTIES
 - Slips of YUSUF, SUNNY, RIAZ, ASGAR, MOIDUL: IGNORE the sub-party names written inside. Party = the loader name. Same-day slip for all of them (MOIDUL included).
 - Circled E beside a KT HC line = ECO (Eco Comp KT / Eco Cyl KT). It is E, not C.
 - Minus compound KT HC (e.g. -0.25 -0.25 any axis written like x45) = ECO COMP KT HC (-).
+- Comp KT tabs have AXIS BLOCKS (e.g. Eco Comp KT (-): x90 / x45 / x135; Dark Comp PG KT (+): x180 / x45 / x135). Pick the block matching the written axis. ALWAYS write the axis (degrees) in reports and questions.
