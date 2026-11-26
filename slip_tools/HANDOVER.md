@@ -9,3 +9,15 @@
 4. ONE batch file at a time. Verify every load in `_HISTORY` before making the next. Big loads (>80 lines) time out: split.
 5. Every slip reply: match staff total, list given lines, end with "Staff missed: ..." (check stock for every not-given line).
 6. Stock can only go DOWN through the loader (auto-adjusts up if given > stock). Put-backs/moves need a small Apps Script.
+7. Report format: table "paper line -> entered as (tab, axis block, cell) -> prs". Always write the AXIS for cyl/comp lines.
+   Don't flag short stock (loader auto-adjusts). Ask only real doubts; check a lens exists before asking.
+8. Same-day slip parties (put slip = their slip no. today): RIAZ, SUNNY, MUNNA, ASGAR, YUSUF, MOIDUL. Ignore sub-party names on their papers.
+   Every other paper = new slip. A new paper for a party is a NEW slip, never a correction of an old one unless the owner says so.
+9. Timeout: if the loader says "Exceeded maximum execution time", download the sheet, see which lines posted, trash the file,
+   upload only the remaining lines (slip = the slip number already opened).
+
+## State at end of 26-11 (chat 1)
+- Last posted: batch66 -> slips 510 (Yusuf) and 517 (Sudershan Malda). All of 26-11 verified up to slip 517.
+- Today's same-day slips: SUNNY 490, MUNNA 500, RIAZ 504, MOIDUL 505, YUSUF 510.
+- Nothing pending. Next job: RAJ RANCHI, 13 pages mixed items -> read 3-4 pages at a time, hold, match packing slip,
+  then upload in parts of ~60 lines (part 1 = new slip, later parts slip = that number). Next batch number: batch67.
