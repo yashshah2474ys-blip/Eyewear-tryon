@@ -32,3 +32,5 @@
 - 26-11 ~18:18 part 1 TIMED OUT: slip 518 RAJ OPTICAL left OPEN with all 60 lines in OUT cells (_PENDING 60 rows), nothing posted as OUT.
   Auto-adjust INs posted: CONNECT CYL BRC PROG HMC G14 0->3, ECO COMP KT HC (+) H26 0->3. batch67 file trashed.
   Owner to press Finish slip; then verify 60 lines / 165.5 prs in _HISTORY, then part 2 with slip=518.
+- Slip 518 finished & verified (60 lines, 165.5 prs). Dipak = staff name (lines stay in slip).
+- Part 2a (18 lines, 53 prs, slip=518) uploaded "CLAUDE SLIP 26-11 batch67 part2a". Part 2b (18 lines, 49.5 prs) waiting in raj_26-11/.
