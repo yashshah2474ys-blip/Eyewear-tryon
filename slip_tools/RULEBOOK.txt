@@ -76,3 +76,5 @@ PARTIES
 - Minus compound KT HC (e.g. -0.25 -0.25 any axis written like x45) = ECO COMP KT HC (-).
 - Comp KT tabs have AXIS BLOCKS (e.g. Eco Comp KT (-): x90 / x45 / x135; Dark Comp PG KT (+): x180 / x45 / x135). Pick the block matching the written axis. ALWAYS write the axis (degrees) in reports and questions.
 - BRC / blue-cut PROG: Marco ONLY when M/Marco is written beside it. No M = CONNECT BRC PROG HMC (also for staff-missed checks).
+- Comp BRC Prog exists ONLY as (+) (Marco Comp BRC Prog HMC (+)). A minus-compound BRC Prog line can NOT be given - treat as not given, don't ask.
+- Before asking, check if the lens/power even exists in the sheet. If no tab/cell exists, it was not given.
