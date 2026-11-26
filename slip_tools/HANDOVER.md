@@ -34,3 +34,4 @@
   Owner to press Finish slip; then verify 60 lines / 165.5 prs in _HISTORY, then part 2 with slip=518.
 - Slip 518 finished & verified (60 lines, 165.5 prs). Dipak = staff name (lines stay in slip).
 - Part 2a (18 lines, 53 prs, slip=518) uploaded "CLAUDE SLIP 26-11 batch67 part2a". Part 2b (18 lines, 49.5 prs) waiting in raj_26-11/.
+- Part 2a verified (slip 518 = 78 lines, 218.5 prs). Part 2b uploaded (18 lines, 49.5 prs) -> expect 96 lines, 268 prs.
