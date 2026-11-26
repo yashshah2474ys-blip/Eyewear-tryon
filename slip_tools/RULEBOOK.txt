@@ -1,4 +1,4 @@
-CLAUDE RULEBOOK - SLIP READING (EZRA STREET)   v2 - 24-11-26
+CLAUDE RULEBOOK - SLIP READING (EZRA STREET)   v4 - 26-11-26
 Read this fully before reading any slip. Every correction from the owner gets added here.
 
 WORKFLOW
@@ -80,7 +80,7 @@ PARTIES
 - Before asking, check if the lens/power even exists in the sheet. If no tab/cell exists, it was not given.
 
 [26-11 Raj Optical additions]
-- RED marks on a page (red tick/loop/x, "PAUL") = ignore for entry. Staff page total = blue + red given.
+- RED marks on a page = not entered in this slip (owner tells whose). Staff page total = blue + red given.
 - Plain "BC" (no letter) = normal blue cut -> C.14 BRC SV HMC (cross block for +sph -cyl). Don't ask about C.14 unless C14 / Super / Chalu is written.
 - "Poly" written = Poly tab. "Poly BC" = C.14 POLY BRC GREEN HMC. "BBC" = blue block blue = blue cut BLUE (not plain blue cut).
 - "PG BDC/BBC" with Blue = MARCO PG BRC BLUE HMC.
