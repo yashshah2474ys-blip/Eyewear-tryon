@@ -101,3 +101,13 @@ PARTIES
 - If a lens/power exists ONLY in a Marco tab (e.g. minus-sph BRC prog / PG prog), it goes to Marco.
 - Opposite axis (minus cyl x180 / plus cyl x90) -> OPP tab. Cross x45/x135 KT -> MARCO CROSS KT HC.
 - ALL slips (big or normal): go PAGE BY PAGE, raise every doubt on that page. Staff-missed: owner decides; most are "not supposed to be given" (repeat orders, plain BC/C.14). Keep a stock-difference list for the end.
+
+[Small-card handwriting patterns (Sunny/Riaz/Yusuf cards) - learned 26-11]
+- Leading number = qty (1/2 = half pair). Dot before qty = given. Loop/x before = not given.
+- "w" / "ω" written at the end = 00  (e.g. "-12w" = -12.00, "+1w" = +1.00, "+10.w" = +10.00).
+- "4/2" or "H/C" bracket = HC. B circled beside HC = Bird (BIRD SV HC). M circled = Marco. N circled = normal. C circled = Connect. A circled = Air (KT HC).
+- High minus with HC bracket (e.g. -12.00/-1.50 HC) = BIRD SV HC. Do NOT change brand (Orbit etc.) unless OR written.
+- "PG BL" on Yusuf-type cards = PG blue cut (MARCO PG BRC, green). Blue only if "Blue" written.
+- Cyl BC on small cards: "+0.75 cyl" circled C = CONNECT BRC SV plano/+cyl.
+- "PL" / "10 plano PG" = DARK PG SV HC plano.
+- Read EVERY digit before mapping; if a number looks odd (-11 vs -12), re-zoom the image, don't guess.
