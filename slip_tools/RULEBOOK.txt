@@ -93,11 +93,11 @@ PARTIES
 - Many photocopied pages (13 here). Page no. circled at side; staff total written in margin (often blue + red, sometimes wrong - owner gives the right page totals).
 - Party name = RAJ OPTICAL. One NEW slip for the whole order; upload in parts of ~60 lines (later parts slip = part-1 slip no.).
 - BLUE tick/strike under a power = given for THAT power only. Loop/x = not given. A tick on one add does NOT mean the other adds were given.
-- RED marks = Paul's portion (Air Bulu/crystal, ND/Night Drive magenta, Choice BRC, some BC Prog). Do NOT enter; red tick = given (counts in packing list), red loop/x = not given. Report red total separately.
-- Dipak lines (blue) = part of Raj slip.
-- Circled small number (2, 1.5) = qty actually given. "1.5 OR / 1.5 C-14" = split.
+- RED marks = NOT entered in this slip (red is NOT always Paul - owner tells whose it is). Red tick = given (counts in packing list total), red loop/x = not given. Report red total separately.
+- Sub-names written beside lines (Dipak etc.): ask owner if unsure; don't assume.
+- Circled small number (2, 1.5) = qty actually given (ordered 5, circled 2 = 2 given). "1.5 OR / 1.5 C-14" = split.
 - Packing slip (3 sheets, boxes 1-12) lists by envelope: Air/Eco/London = KT HC tabs, Star = Bird HC, Choice = Connect, C14 = C.14. Packing total = blue + red. Match box by box.
 - Envelope may say Marco for Cyl BRC Prog OPP but software tab = CONNECT CYL BRC PROG HMC OPP.
-- Minus-sph prog (BRC prog, PG prog) exists only in Marco -> use Marco (-) tab.
+- If a lens/power exists ONLY in a Marco tab (e.g. minus-sph BRC prog / PG prog), it goes to Marco.
 - Opposite axis (minus cyl x180 / plus cyl x90) -> OPP tab. Cross x45/x135 KT -> MARCO CROSS KT HC.
-- Raise ALL doubts while on that page, page by page. Staff-missed: owner decides; most are "not supposed to be given" (repeat orders, plain BC/C.14). Keep a stock-difference list for the end.
+- ALL slips (big or normal): go PAGE BY PAGE, raise every doubt on that page. Staff-missed: owner decides; most are "not supposed to be given" (repeat orders, plain BC/C.14). Keep a stock-difference list for the end.
