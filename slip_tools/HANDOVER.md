@@ -21,3 +21,11 @@
 - Today's same-day slips: SUNNY 490, MUNNA 500, RIAZ 504, MOIDUL 505, YUSUF 510.
 - Nothing pending. Next job: RAJ RANCHI, 13 pages mixed items -> read 3-4 pages at a time, hold, match packing slip,
   then upload in parts of ~60 lines (part 1 = new slip, later parts slip = that number). Next batch number: batch67.
+
+## State 26-11 (chat 2) - RAJ OPTICAL (Raj Ranchi, 13 pages)
+- Reading done and matched with packing slip (312 prs = 266 blue + 44 red Paul + held cross KT line).
+- batch67 part 1 (60 lines, 165.5 prs, new slip) uploaded to Drive as "CLAUDE SLIP 26-11 batch67". Verify in _HISTORY.
+- Part 2 = slip_tools/raj_26-11/batch67_part2.csv (35 lines, 100.5 prs) -> set slip column to part-1 slip no.
+  + add MARCO CROSS KT HC Q40 (+0.75 -1.00 x135 add +2.00) qty 2 or 3 once owner's staff confirm (packing says 2, paper 3).
+- Holds: p3 BC KT +1.00/+0.75 x180 add 2.00; p9 BC Prog +1.50/+0.50 x180 add 2.00 (owner to confirm).
+- Stock differences (end): p3 BIRD T206 +2.00/-4.50; p7 DARK CYL PG KT S46 -1.50 x45 add 2.50; p7 ECO COMP KT (+) G162 +3.00/+1.00 add 2.25; p11 ECO COMP KT (-) I176 -2.50/-1.50 add 2.75.
