@@ -29,3 +29,6 @@
   + MARCO CROSS KT HC Q40 qty 2 already added to part2 file.
 - Holds: p3 BC KT +1.00/+0.75 x180 add 2.00; p9 BC Prog +1.50/+0.50 x180 add 2.00 (owner to confirm).
 - Stock differences (end): p10 MARCO CROSS KT HC Q40 (2 prs, after giving 2); p3 BIRD T206 +2.00/-4.50; p7 DARK CYL PG KT S46 -1.50 x45 add 2.50; p7 ECO COMP KT (+) G162 +3.00/+1.00 add 2.25; p11 ECO COMP KT (-) I176 -2.50/-1.50 add 2.75.
+- 26-11 ~18:18 part 1 TIMED OUT: slip 518 RAJ OPTICAL left OPEN with all 60 lines in OUT cells (_PENDING 60 rows), nothing posted as OUT.
+  Auto-adjust INs posted: CONNECT CYL BRC PROG HMC G14 0->3, ECO COMP KT HC (+) H26 0->3. batch67 file trashed.
+  Owner to press Finish slip; then verify 60 lines / 165.5 prs in _HISTORY, then part 2 with slip=518.
