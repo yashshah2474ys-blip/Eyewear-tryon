@@ -69,3 +69,8 @@ MARKS / READING
 PARTIES
 - Saved names: SAHA BMP, KANAIYA AHMEDABAD, ALI FARWAH, GUPTA SILIGURI, DARSHAN GHATKOPAR, MANOJ HAJIPUR, PRINCE/ANIL, AMIT M.A, M.M CANING ST, VISION, MALDA, DADA, HITESH, HARUN, ABID, YUSUF, SUNNY, RIAZ, MUNNA.
 - Abid: same day -> add to his slip (461 type).
+
+[26-11 additions]
+- Slips of YUSUF, SUNNY, RIAZ, ASGAR, MOIDUL: IGNORE the sub-party names written inside. Party = the loader name. Same-day slip for all of them (MOIDUL included).
+- Circled E beside a KT HC line = ECO (Eco Comp KT / Eco Cyl KT). It is E, not C.
+- Minus compound KT HC (e.g. -0.25 -0.25 any axis written like x45) = ECO COMP KT HC (-).
