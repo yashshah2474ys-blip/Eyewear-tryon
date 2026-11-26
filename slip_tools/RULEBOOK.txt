@@ -78,3 +78,13 @@ PARTIES
 - BRC / blue-cut PROG: Marco ONLY when M/Marco is written beside it. No M = CONNECT BRC PROG HMC (also for staff-missed checks).
 - Comp BRC Prog exists ONLY as (+) (Marco Comp BRC Prog HMC (+)). A minus-compound BRC Prog line can NOT be given - treat as not given, don't ask.
 - Before asking, check if the lens/power even exists in the sheet. If no tab/cell exists, it was not given.
+
+[26-11 Raj Optical additions]
+- RED marks on a page (red tick/loop/x, "PAUL") = ignore for entry. Staff page total = blue + red given.
+- Plain "BC" (no letter) = normal blue cut -> C.14 BRC SV HMC (cross block for +sph -cyl). Don't ask about C.14 unless C14 / Super / Chalu is written.
+- "Poly" written = Poly tab. "Poly BC" = C.14 POLY BRC GREEN HMC. "BBC" = blue block blue = blue cut BLUE (not plain blue cut).
+- "PG BDC/BBC" with Blue = MARCO PG BRC BLUE HMC.
+- CR KT = normal KT HC tabs (Eco/London/Connect); CR HC = BIRD SV HC. Air Bulu with CB = C.14 BRC CRYSTAL BLUE HMC.
+- Cyl BRC Prog "c" +cyl x180 = regular CONNECT CYL BRC PROG tab (not OPP), even if stock shows 0.
+- "1.5 OR / 1.5 C-14" beside a line = split qty between Orbit and C.14.
+- Repeated orders in the same order are NOT given. Owner decides staff-missed; at the end give a page-wise staff-missed list (page N: power) for staff to recheck.
