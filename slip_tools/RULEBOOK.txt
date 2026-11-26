@@ -1,0 +1,71 @@
+CLAUDE RULEBOOK - SLIP READING (EZRA STREET)   v2 - 24-11-26
+Read this fully before reading any slip. Every correction from the owner gets added here.
+
+WORKFLOW
+- Owner sends slip photo + packing slip / totals. Match my reading to totals per product before making batch.
+- Match -> make batch, report one line. Mismatch -> show only the mismatching lines.
+- Every paper = NEW slip, unless owner says add to previous.
+  Exceptions: RIAZ, SUNNY, MUNNA, ASGAR, YUSUF -> same day = same slip. FITTING LENS -> that day's fitting lens slip.
+- Sub-headings on a slip (Golden, Dilip, Shreeji, Bablu, Sandip, Monalisa...) all go under the main party at top.
+- Use saved party names only: RIAZ, SUNNY, MUNNA, ASGAR, YUSUF, M.M CANING ST, AMIT M.A, PRINCE/ANIL, GUPTA SILIGURI, SUDARSHAN, MOIDUL, HARUN, MANOJ HAJIPUR, ALOK PURSHANTAM, UPPAR STOCK, COUNTER STOCK.
+- Do NOT make a batch until owner says (unless totals match and owner approved that flow).
+- Big batches (>80 lines) -> split. Same power twice for one slip -> merge into one line.
+
+STAFF MARKS
+- Tick OR dot OR slash through the line = GIVEN. (A tick without a dot is still given.)
+- Loop / x mark = NOT given.
+- Circled number = quantity actually given (e.g. ordered 2, circled 1 = 1 given).
+- Struck number with OR / C14 circled next to it = given from Orbit / C.14.
+- Grid numbers: "15" can be 1.5; "1" with a flag can look like 7. Check against stock and totals.
+- First line under a party name is a real line (e.g. "1 PL (N)" = 1 plano pair), not a heading.
+- 1/2 written = half pair. R/L lines with no qty = 1/2 each.
+- "old" written = give from old stock only; not-given lines are fine, not staff-missed.
+- N circled, M circled = normal marks; M usually = Marco.
+
+POWER WRITING
+- Fraction: SPH CYL AXIS on top, ADD below. Leading number = quantity.
+- Number + axis only (e.g. -1.50 90) = cylinder, plano sph.
+- Cross power (+sph -cyl) e.g. +0.50 -1.00 -> CROSS block.
+- Fitting lens = half pairs, separate FITTING LENS slip.
+
+PRODUCT CODES (envelope letters)
+- HC alone = hard coat. C/S or S/C: C = chalu = BIRD, S = C.14. Check C.14 only where S/C written.
+- KT HC: plus sph -> CONNECT KT HC (+3.50 and above -> LONDON KT HC (+)); minus sph -> LONDON KT HC (-);
+  cyl -> ECO CYL KT HC; compound -> ECO COMP KT HC (+/-, OPP by axis); cross -> ECO CROSS COMP KT HC.
+- A = Air, E = Eco envelopes -> normal KT HC tabs. ch = Choice envelope -> CONNECT.
+- BRC: C = Connect, OR / "on" = Orbit, C14 = C.14 or Marco (new envelope). Marco only when Marco written.
+- BRC progressive: Marco only when written; Connect BRC Prog = 0 stock. "B/C prog" with Marco = MARCO BRC PROG HMC.
+- B/C KT = BRC KT (Connect BRC KT plano; compound -> MARCO COMP BRC KT; cyl -> MARCO CYL BRC KT).
+- BRC Blue / B/Blue: Marco BRC Blue unless C ticked -> Connect BRC Blue 1.56. "M/C" with C ticked = Connect.
+- D/C or DC = BRC Double Coating (C.14 BRC DOUBLE COATING HMC).
+- PG blue cut / PG BRC (no "blue") = green = MARCO PG BRC HMC. "PG blue cut blue" = MARCO PG BRC BLUE HMC.
+- LR only if LR written. V2 = progressive.
+- PG HC / PG H/C SV = DARK PG SV HC. PG KT = DARK PG KT HC (+) (cyl -> DARK CYL PG KT, comp -> DARK COMP PG KT).
+- PG D HC = MARCO PG D HC. Prog HC with M = MARCO COMP/ PROG HC.
+- 1.67 BRC = ORBIT BRC 1.67 HMC. 55 dia BRC = ORBIT BRC SV HMC 55 DIA.
+- Duron = HC.
+- -6/-4 grid sheets: OR = Orbit, C14 = C.14 BRC SV.
+
+STAFF-MISSED CHECK
+- For every not-given or short-given line, check stock in the right tab. Report only if stock exists.
+- Not missed when: old-stock-only order, owner said "told to give that much only".
+- "Given but sheet shows 0 stock" = probably misread power -> ask.
+
+=== v3 additions (24-25 Nov) ===
+WORKFLOW / LOADING
+- ONE batch file in Drive at a time. Next batch only after owner confirms load AND I verify in _HISTORY. Corrections go in the NEXT batch; never replace a file that may be loading.
+- After a time-out: check history, trash posted files at once, put only the remaining lines in a new file.
+- Every reply on a slip ends with "Staff missed: ..." (even "none"). Check EVERY order (party, Uppar, Counter, all).
+- Grid sheets: match ticked cells to stock; if ticked cell shows 0 stock, row is probably misread - re-check before posting.
+MARKS / READING
+- Tick (even without dot) = given. Dotted items only when owner says the dot rule applies to that slip.
+- Darshan-type slips: cyl written first, then sph values.
+- Packing slip may write the RANGE (e.g. -4.00 cyl for -6/-4) - trust order slip power.
+- Prog HC with M = Marco Prog HC. Cyl Prog HC and Cyl BRC Prog = CONNECT only (Marco only when owner says).
+- BRC prog: Marco only when written.
+- Plano Photobrown HC = PLANO ITEMS tab (C.14 PHOTOBROWN HC PLANO).
+- Super HC = C.14 SV HC. C14 PG KT = C.14 PG KT HC.
+- "OK" on Sunny-type pages: ignore, use dots/ticks.
+PARTIES
+- Saved names: SAHA BMP, KANAIYA AHMEDABAD, ALI FARWAH, GUPTA SILIGURI, DARSHAN GHATKOPAR, MANOJ HAJIPUR, PRINCE/ANIL, AMIT M.A, M.M CANING ST, VISION, MALDA, DADA, HITESH, HARUN, ABID, YUSUF, SUNNY, RIAZ, MUNNA.
+- Abid: same day -> add to his slip (461 type).
