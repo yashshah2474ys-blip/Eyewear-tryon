@@ -35,3 +35,11 @@
 - Slip 518 finished & verified (60 lines, 165.5 prs). Dipak = staff name (lines stay in slip).
 - Part 2a (18 lines, 53 prs, slip=518) uploaded "CLAUDE SLIP 26-11 batch67 part2a". Part 2b (18 lines, 49.5 prs) waiting in raj_26-11/.
 - Part 2a verified (slip 518 = 78 lines, 218.5 prs). Part 2b uploaded (18 lines, 49.5 prs) -> expect 96 lines, 268 prs.
+
+## State end of 26-11 (chat 2)
+- Slip 518 RAJ OPTICAL complete & verified: 96 lines, 268 prs.
+- batch68 uploaded (27 lines): SUNNY->490, RIAZ->504, YUSUF->510, new: DADA, IMRAN, SUDERSHAN (MALDA) 115 prs, DARSHAN GHATKOPAR 15 prs.
+  NEXT CHAT: verify batch68 in _HISTORY first. Next batch number: batch69.
+- Pending for Raj: stock differences (p3 BIRD T206; p7 DARK CYL PG KT S46; p7 ECO COMP KT (+) G162; p10 MARCO CROSS KT HC Q40 2 prs; p11 ECO COMP KT (-) I176)
+  and holds: p3 BC KT +1.00/+0.75 x180 add 2.00; p9 BC Prog +1.50/+0.50 x180 add 2.00 (owner to confirm).
+- Owner wants: short replies, page-by-page, zoom every line before reading, new chat when this one gets long.
