@@ -1,0 +1,33 @@
+function finalGoodsFix2() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), h = ss.getSheetByName('_HISTORY'), cf = ss.getSheetByName('_CONFIG');
+  var Pp = PropertiesService.getDocumentProperties();
+  if (Pp.getProperty('FINAL_FIX_2')) { ss.toast('Already done before. Nothing changed.', 'Final fix', 8); return; }
+  var D = [["MARCO PG BRC HMC", "B8", "0.00", "0.00", 2000, "NEW GOODS green plano lot (kt) - added to EZRA"], ["MARCO PG BRC BLUE HMC", "B8", "0.00", "0.00", 1000, "NEW GOODS blue plano lot (kt) - added to EZRA"], ["MARCO COMP PROG HC (+)", "F50", "+1.50 +0.50", "+2.00", -1, "NEW GOODS item 2 - checked sheet"], ["MARCO COMP PROG HC (+)", "E20", "+0.50 +0.75", "+1.75", -1, "NEW GOODS item 2 - checked sheet"], ["MARCO CYL BRC KT HMC OPP", "D34", "-0.50", "+1.50", 2, "NEW GOODS item 17 - checked sheet"], ["MARCO CYL BRC KT HMC OPP", "J40", "-1.25", "+3.00", 1, "NEW GOODS item 17 - checked sheet"], ["MARCO CYL BRC KT HMC OPP", "G44", "-1.75", "+2.25", -9.5, "NEW GOODS item 17 - checked sheet"], ["MARCO CYL BRC KT HMC", "D8", "+0.25", "+1.50", 0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "B10", "+0.50", "+1.00", 2, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "F10", "+0.50", "+2.00", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H10", "+0.50", "+2.50", 1, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "E12", "+0.75", "+1.75", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H12", "+0.75", "+2.50", -1, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "I12", "+0.75", "+2.75", 0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "E14", "+1.00", "+1.75", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "F14", "+1.00", "+2.00", -1, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "G14", "+1.00", "+2.25", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H14", "+1.00", "+2.50", -2.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "I14", "+1.00", "+2.75", -3, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "J14", "+1.00", "+3.00", 2, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H18", "+1.50", "+2.50", -1, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "F22", "+2.00", "+2.00", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "D24", "+2.50", "+1.50", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "I24", "+2.50", "+2.75", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "D36", "-0.25", "+1.50", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "F36", "-0.25", "+2.00", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "B38", "-0.50", "+1.00", -1.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "C38", "-0.50", "+1.25", 1, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "D38", "-0.50", "+1.50", -1.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "E38", "-0.50", "+1.75", 0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "F38", "-0.50", "+2.00", 3.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H38", "-0.50", "+2.50", 1, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "I38", "-0.50", "+2.75", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "D40", "-0.75", "+1.50", 0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "E40", "-0.75", "+1.75", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H40", "-0.75", "+2.50", 1, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "E42", "-1.00", "+1.75", 0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "F42", "-1.00", "+2.00", -3.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H42", "-1.00", "+2.50", 2, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "I42", "-1.00", "+2.75", 0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H46", "-1.50", "+2.50", 1, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "J50", "-2.00", "+3.00", -0.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "H52", "-2.50", "+2.50", -7.5, "NEW GOODS item 16 - checked sheet"], ["MARCO CYL BRC KT HMC", "I52", "-2.50", "+2.75", 0.5, "NEW GOODS item 16 - checked sheet"]];
+  var cfv = cf.getRange(2, 1, 299, 21).getValues(), cfg = {};
+  cfv.forEach(function (r) { if (r[0]) cfg[String(r[0])] = { rngs: String(r[5]).split(','), ro: Number(r[20]) || 0 }; });
+  function a1(s) { var m = s.match(/^([A-Z]+)(\d+)$/), c = 0; for (var i = 0; i < m[1].length; i++) c = c * 26 + m[1].charCodeAt(i) - 64; return { r: Number(m[2]), c: c }; }
+  var V = {}, bad = [], ops = [];
+  D.forEach(function (d) {
+    var t = d[0], sh = ss.getSheetByName(t);
+    if (!V[t]) V[t] = sh.getRange(1, 1, Math.min(sh.getMaxRows(), 200), sh.getMaxColumns()).getValues();
+    var p = a1(d[1]), v = V[t], cur = v[p.r - 1][p.c - 1], pw = String(sh.getRange(p.r, 1).getDisplayValue()), ad = String(sh.getRange(p.r + 1, p.c).getDisplayValue());
+    if (pw !== d[2] || ad !== d[3]) { bad.push(t + ' ' + d[1] + ': box is ' + pw + ' / ' + ad + ', expected ' + d[2] + ' / ' + d[3]); return; }
+    cur = (cur === '' || cur === null) ? 0 : Number(cur);
+    if (isNaN(cur) || cur + d[4] < 0) { bad.push(t + ' ' + d[2] + ' / ' + d[3] + ': stock ' + cur + ', change ' + d[4]); return; }
+    var block = '', rng = '';
+    (cfg[t] ? cfg[t].rngs : []).forEach(function (s) { var m = s.match(/^([A-Z]+\d+):([A-Z]+\d+)$/); if (!m) return; var x = a1(m[1]), y = a1(m[2]);
+      if (p.r >= x.r && p.r <= y.r && p.c >= x.c && p.c <= y.c) { block = String(v[x.r - 3][x.c - 1]); rng = String(v[p.r - 1][p.c - 1 + cfg[t].ro]); } });
+    ops.push({ sh: sh, t: t, p: p, cur: cur, d: d, block: block, rng: rng });
+  });
+  if (bad.length) throw new Error('STOP - nothing changed: ' + bad.slice(0, 6).join(' | ') + '. Tell Claude.');
+  var now = new Date(), rows = [], net = 0;
+  ops.forEach(function (o) {
+    var after = Math.round((o.cur + o.d[4]) * 100) / 100;
+    o.sh.getRange(o.p.r, o.p.c).setValue(after);
+    rows.push([now, o.t, "'" + o.rng, "'" + o.d[2], "'" + o.d[3], o.d[4] > 0 ? 'IN' : 'OUT', Math.abs(o.d[4]), o.cur, after, 'goods correction', '', o.d[5], o.d[1], "'" + o.block]);
+    net += o.d[4];
+  });
+  h.getRange(h.getLastRow() + 1, 1, rows.length, 14).setValues(rows);
+  Pp.setProperty('FINAL_FIX_2', '1');
+  ss.toast('Goods corrections done: ' + rows.length + ' boxes, net ' + net + ' prs (plano green +2000, plano blue +1000, item 2: -2, item 16: -10.5, item 17: -6.5).', 'Final fix', 15);
+}
