@@ -78,3 +78,5 @@ PARTIES
 - BRC / blue-cut PROG: Marco ONLY when M/Marco is written beside it. No M = CONNECT BRC PROG HMC (also for staff-missed checks).
 - Comp BRC Prog exists ONLY as (+) (Marco Comp BRC Prog HMC (+)). A minus-compound BRC Prog line can NOT be given - treat as not given, don't ask.
 - Before asking, check if the lens/power even exists in the sheet. If no tab/cell exists, it was not given.
+- Talk to the owner with LENS NAMES (e.g. "Marco Cyl BRC KT HMC"), never "item 16" numbers.
+- New goods: the ORDER SHEET is what staff tick/count; packing list is only for checking.

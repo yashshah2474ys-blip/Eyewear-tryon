@@ -21,8 +21,8 @@ Then staff tick the printed order sheets; their handwritten corrections are appl
 ## STILL OPEN (nothing done since 21 Nov)
 1. Staff photo check of 3 items (send the ticked sheets, then apply corrections in one script):
    - Item 2  MARCO COMP PROG HC (+) ×180 – cartons 3006–3011 – 3,135 prs
-   - Item 16 MARCO CYL BRC KT HMC – cartons 3217–3225 – 5,693 prs
-   - Item 17 MARCO CYL BRC KT HMC OPP – cartons 3225–3229 – 2,975 prs (incl. 234 OPP-300)
+   - MARCO CYL BRC KT HMC – cartons 3217–3225 – 5,693 prs
+   - MARCO CYL BRC KT HMC OPP – cartons 3225–3229 – 2,975 prs (incl. 234 OPP-300)
 2. Owner decision EZRA or 56 NO, NOT ADDED anywhere yet:
    - Item 6 BRC green prog – 17,812 prs
    - Green plano lot – 2,000 prs
