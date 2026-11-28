@@ -1,6 +1,7 @@
 # Slip work handover (read first in a new chat)
 
 1. Read `slip_tools/RULEBOOK.txt` (same as Drive file "CLAUDE RULEBOOK v3").
+   Also read `slip_tools/GOODS_STATUS.md` (new-goods shipment: what is done and what is still open).
 2. Main sheet: Google Drive id `1MtG5CjqWFzG_Ho7WI1CSNh1NsY4Gd301JUj9ai8Utws` (EZRA STREET - MAIN GODOWN STOCK).
    Download as xlsx, use `slip_tools/find_cell.py` (`Book(xlsx).find(tab, power, add, block)`) to get cell + stock.
 3. Batch file = CSV in Drive titled `CLAUDE SLIP <dd-mm> batchN`, columns:
